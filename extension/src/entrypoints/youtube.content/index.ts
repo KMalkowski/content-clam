@@ -2,7 +2,7 @@ import "./style.css";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import { LOOKAHEAD_PX, normalizeChannelKey, type VideoMetadata } from "@content-clam/shared";
-import { CARD_SELECTOR, extractCard, extractShortsPlayer, currentShortsId, isNestedCard } from "./extract";
+import { CARD_SELECTOR, SHORTS_VIDEO_SELECTOR, extractCard, extractShortsPlayer, currentShortsId, isNestedCard } from "./extract";
 import { applyOutcome, clearDim, DIM_CLASS } from "./dimming";
 import { sendToBackground, type AnalysisOutcome } from "../../lib/messages";
 
@@ -195,7 +195,7 @@ class ShortsController {
   onOutcome(outcome: AnalysisOutcome) {
     if (outcome.videoId !== currentShortsId()) return;
     if (!outcome.decision?.dimmed || this.revealed.has(outcome.videoId)) return;
-    const video = document.querySelector<HTMLVideoElement>("ytd-shorts video, #shorts-player video");
+    const video = document.querySelector<HTMLVideoElement>(SHORTS_VIDEO_SELECTOR);
     if (!video) return;
     video.pause();
     this.pausedFor = outcome.videoId;
@@ -210,7 +210,7 @@ class ShortsController {
     this.revealed.add(videoId);
     if (this.pausedFor === videoId) {
       this.pausedFor = null;
-      document.querySelector<HTMLVideoElement>("ytd-shorts video, #shorts-player video")?.play().catch(() => undefined);
+      document.querySelector<HTMLVideoElement>(SHORTS_VIDEO_SELECTOR)?.play().catch(() => undefined);
     }
     this.removeBanner();
   }

@@ -79,11 +79,17 @@ export function currentShortsId(): string | null {
   return parseVideoId(location.pathname);
 }
 
+export const SHORTS_VIDEO_SELECTOR = "#shorts-player video, ytd-shorts video";
+
+export function activeShortsReel(): Element | null {
+  return document.querySelector(SHORTS_VIDEO_SELECTOR)?.closest("ytd-reel-video-renderer") ?? document.querySelector("ytd-reel-video-renderer[is-active]");
+}
+
 export function extractShortsPlayer(): VideoMetadata | null {
   const videoId = currentShortsId();
   if (!videoId) return null;
-  const active = document.querySelector("ytd-reel-video-renderer[is-active], ytd-shorts [is-active]") ?? document;
-  const title = text(active.querySelector("h2.title, .ytShortsVideoTitleViewModelShortsVideoTitle, yt-shorts-video-title-view-model, #shorts-title")) || text(document.querySelector("title")).replace(/ - YouTube$/, "");
+  const active = activeShortsReel() ?? document;
+  const title = text(active.querySelector(".ytShortsVideoTitleViewModelShortsVideoTitle, yt-shorts-video-title-view-model, h2.title, #shorts-title")) || text(document.querySelector("title")).replace(/ - YouTube$/, "");
   if (!title) return null;
   const channelLink = active.querySelector<HTMLAnchorElement>('a[href^="/@"]');
   return {
