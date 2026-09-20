@@ -1,0 +1,18 @@
+{
+  "name": "content-clam",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "pnpm@10.14.0",
+  "scripts": {
+    "dev:extension": "pnpm --filter @content-clam/extension dev",
+    "dev:backend": "pnpm --filter @content-clam/backend dev",
+    "dev:web": "pnpm --filter @content-clam/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "jev:smoke": "node --experimental-strip-types scripts/jev-smoke.mjs"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

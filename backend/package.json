@@ -1,0 +1,26 @@
+{
+  "name": "@content-clam/backend",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "convex dev",
+    "deploy": "convex deploy",
+    "typecheck": "tsc --noEmit -p convex",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@content-clam/shared": "workspace:*",
+    "@convex-dev/rate-limiter": "^0.4.0",
+    "@convex-dev/stripe": "^0.1.6",
+    "convex": "^1.46.0",
+    "stripe": "^22.6.2"
+  },
+  "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
+    "convex-test": "^0.0.59",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  }
+}
