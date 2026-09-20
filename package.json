@@ -10,9 +10,10 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "jev:smoke": "node --experimental-strip-types scripts/jev-smoke.mjs"
+    "jev:smoke": "tsx scripts/jev-smoke.mjs"
   },
   "devDependencies": {
+    "tsx": "^4.23.15",
     "typescript": "~5.9.3"
   }
 }
