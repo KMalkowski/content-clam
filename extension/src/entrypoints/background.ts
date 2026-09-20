@@ -1,7 +1,7 @@
 import { defineBackground } from "wxt/utils/define-background";
 import { analyzeVideos } from "../lib/analyzer";
 import type { BackgroundRequest, BackgroundResponse, Status } from "../lib/messages";
-import { fundingModeItem, personalKeyItem, revealedItem, settingsItem, syncChoiceItem } from "../lib/storage";
+import { fundingModeItem, lastErrorItem, personalKeyItem, revealedItem, settingsItem, syncChoiceItem } from "../lib/storage";
 import { env, hostedModeAvailable } from "../lib/env";
 import { ensureAccount, fetchAccount, fetchRemoteSettings, fromRemote, pushSettings, sessionInfo } from "../lib/hosted";
 
@@ -70,8 +70,8 @@ async function pushIfSyncing(request: { settings: unknown }) {
 }
 
 async function status(): Promise<Status> {
-  const [fundingMode, personalKey] = await Promise.all([fundingModeItem.getValue(), personalKeyItem.getValue()]);
-  const base: Status = { fundingMode, hasPersonalKey: Boolean(personalKey), hostedAvailable: hostedModeAvailable, signedIn: false };
+  const [fundingMode, personalKey, lastError] = await Promise.all([fundingModeItem.getValue(), personalKeyItem.getValue(), lastErrorItem.getValue()]);
+  const base: Status = { fundingMode, hasPersonalKey: Boolean(personalKey), hostedAvailable: hostedModeAvailable, signedIn: false, lastError: lastError ?? undefined };
   if (!hostedModeAvailable) return base;
   const session = await sessionInfo();
   if (!session.signedIn) return base;

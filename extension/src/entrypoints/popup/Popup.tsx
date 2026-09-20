@@ -45,7 +45,12 @@ export function Popup() {
 function FundingLine({ status }: { status: ReturnType<typeof useStatus>["status"] }) {
   if (!status) return <p className="muted">Checking account…</p>;
   if (status.fundingMode === "personal-key") {
-    return <p className="muted">{status.hasPersonalKey ? "Using your TypeSafe API key." : "Add your API key in settings."}</p>;
+    return (
+      <>
+        <p className="muted">{status.hasPersonalKey ? "Using your TypeSafe API key." : "Add your API key in settings."}</p>
+        {status.lastError && <p className="error">Last analysis failed: {status.lastError}</p>}
+      </>
+    );
   }
   if (status.fundingMode === "hosted") {
     if (!status.signedIn) {

@@ -49,7 +49,8 @@ export function createFetchJevCaller(apiKey: string, fetchFn: typeof fetch = fet
     if (!response.ok) {
       const text = await response.text().catch(() => "");
       const retryable = response.status === 429 || response.status >= 500;
-      throw new JevError(response.status, text || response.statusText, retryable);
+      const detail = response.status === 401 ? "API key rejected" : text.slice(0, 200) || response.statusText;
+      throw new JevError(response.status, `TypeSafe ${response.status}: ${detail}`, retryable);
     }
     return (await response.json()) as JevResponse;
   };

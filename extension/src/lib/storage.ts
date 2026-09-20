@@ -43,3 +43,7 @@ export const syncChoiceItem = storage.defineItem<"asked" | "unasked">("local:syn
 export const revealedItem = storage.defineItem<Record<string, number>>("session:revealed", {
   fallback: {},
 });
+
+export const lastErrorItem = storage.defineItem<string | null>("session:lastError", {
+  fallback: null,
+});

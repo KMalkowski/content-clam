@@ -6,7 +6,7 @@ export default defineConfig({
   manifest: ({ mode }) => {
     const syncHost = process.env.WXT_CLERK_SYNC_HOST;
     const frontendApi = process.env.WXT_CLERK_FRONTEND_API;
-    const hostPermissions = ["*://*.youtube.com/*"];
+    const hostPermissions = ["*://*.youtube.com/*", "https://api.typesafe.ai/*"];
     if (syncHost) hostPermissions.push(`${syncHost}/*`);
     if (frontendApi) hostPermissions.push(`${frontendApi}/*`);
     return {

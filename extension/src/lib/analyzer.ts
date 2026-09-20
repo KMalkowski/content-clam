@@ -12,7 +12,7 @@ import {
   type Settings,
   type VideoMetadata,
 } from "@content-clam/shared";
-import { cacheItem, fundingModeItem, personalKeyItem, pendingOperationsItem, settingsItem, type CachedClassification } from "./storage";
+import { cacheItem, fundingModeItem, lastErrorItem, personalKeyItem, pendingOperationsItem, settingsItem, type CachedClassification } from "./storage";
 import { categoryPayload, reasonsFor, rulesHash } from "./rules";
 import type { AnalysisOutcome } from "./messages";
 import { hostedAnalyze } from "./hosted";
@@ -67,9 +67,12 @@ async function runAnalysis(
       return { videoId: video.videoId, decision: null, reasons: [], error: "Choose how to pay for analyses in the popup." };
     }
     await storeResult(video.videoId, { fingerprint, rulesHash: hashNow, result: scores, analyzedAt: Date.now() });
+    await lastErrorItem.setValue(null);
     return outcome(video.videoId, scores, settings, enabledIds);
   } catch (error) {
-    return { videoId: video.videoId, decision: null, reasons: [], error: error instanceof Error ? error.message : String(error) };
+    const message = error instanceof Error ? error.message : String(error);
+    await lastErrorItem.setValue(message);
+    return { videoId: video.videoId, decision: null, reasons: [], error: message };
   }
 }
 
