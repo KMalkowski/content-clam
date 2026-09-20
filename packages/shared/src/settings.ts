@@ -23,6 +23,7 @@ export interface AllowedChannel {
 
 export interface Settings {
   paused: boolean;
+  hideShorts: boolean;
   categories: Category[];
   allowedTopics: AllowedTopic[];
   allowedChannels: AllowedChannel[];
@@ -31,6 +32,7 @@ export interface Settings {
 export function defaultSettings(now = Date.now()): Settings {
   return {
     paused: false,
+    hideShorts: false,
     categories: BUILT_IN_CATEGORIES.map((c) => ({
       id: c.id,
       name: c.name,

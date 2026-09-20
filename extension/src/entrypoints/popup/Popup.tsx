@@ -28,6 +28,11 @@ export function Popup() {
 
       <FundingLine status={status} />
 
+      <label className="row between switch" style={{ padding: "4px 0" }}>
+        <span>Hide Shorts</span>
+        <input type="checkbox" checked={settings.hideShorts} onChange={(e) => save({ ...settings, hideShorts: e.target.checked })} />
+      </label>
+
       <div className="stack" style={{ gap: 4 }}>
         {settings.categories.map((c) => (
           <label key={c.id} className="row between switch" style={{ padding: "4px 0" }}>

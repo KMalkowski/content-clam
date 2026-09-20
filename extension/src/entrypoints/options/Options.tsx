@@ -30,6 +30,15 @@ export function Options() {
 
       <FundingSection status={statusHook.status} refreshStatus={statusHook.refresh} refreshSettings={refresh} />
 
+      <section>
+        <h2>Shorts</h2>
+        <label className="switch">
+          <input type="checkbox" checked={settings.hideShorts} onChange={(e) => save({ ...settings, hideShorts: e.target.checked })} />
+          Hide Shorts everywhere
+        </label>
+        <p className="muted">Removes Shorts shelves and cards without analysis or credits. Anything already on screen is blurred instead of removed, so the page does not jump.</p>
+      </section>
+
       <Categories settings={settings} save={save} />
       <Topics settings={settings} save={save} />
       <Channels settings={settings} save={save} />
@@ -157,6 +166,7 @@ function ImportExport({ settings, save }: { settings: Settings; save: (s: Settin
       if (!Array.isArray(parsed.categories)) throw new Error("File does not contain categories.");
       await save({
         paused: Boolean(parsed.paused),
+        hideShorts: Boolean(parsed.hideShorts),
         categories: parsed.categories,
         allowedTopics: parsed.allowedTopics ?? [],
         allowedChannels: parsed.allowedChannels ?? [],

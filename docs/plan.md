@@ -37,6 +37,7 @@ These do not block implementation. The architecture, first-release scope, and da
 - Postpone personal profiles and knowledge tracking.
 - Dim Shorts cards. Pause a matching Short in the player and offer a way to play it anyway. Reliable playback control still requires a prototype.
 - Offer an always-allow exception for a channel.
+- Offer a Hide Shorts switch that removes Shorts without analysis or credits. Shelves below the fold are removed; anything already visible is blurred in place to avoid layout shift.
 - Allowed topics override every category filter, including clickbait. Match the video's main subject rather than passing keywords. Explain this effect in settings.
 - Allowed channels bypass analysis. Topic exceptions generally require analysis and therefore consume a credit when no reusable result exists.
 - Revealing an individual video does not change future filtering rules.

@@ -18,6 +18,10 @@ export interface PendingOperation {
 
 export const settingsItem = storage.defineItem<Settings>("local:settings", {
   fallback: defaultSettings(),
+  version: 2,
+  migrations: {
+    2: (old: Omit<Settings, "hideShorts">) => ({ ...old, hideShorts: false }),
+  },
 });
 
 export const fundingModeItem = storage.defineItem<FundingMode>("local:fundingMode", {

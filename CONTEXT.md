@@ -20,6 +20,9 @@ A choice to open a video that the viewer later considers a poor use of their tim
 **Credits**:
 A prepaid balance used to pay for feed curation. One credit buys one successfully completed video analysis within the service's published limits.
 
+**Hide Shorts**:
+A viewer's choice to remove every Shorts shelf, card, and menu entry without analysis. Content already on screen is blurred rather than removed so the page does not jump.
+
 **Allowed channel**:
 A channel the viewer has chosen to exempt from filtering.
 

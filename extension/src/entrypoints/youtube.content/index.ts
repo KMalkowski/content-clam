@@ -4,6 +4,7 @@ import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import { LOOKAHEAD_PX, normalizeChannelKey, type VideoMetadata } from "@content-clam/shared";
 import { CARD_SELECTOR, SHORTS_VIDEO_SELECTOR, extractCard, extractShortsPlayer, currentShortsId, isNestedCard } from "./extract";
 import { applyOutcome, clearDim, DIM_CLASS } from "./dimming";
+import { hideShortsOnPage } from "./shorts";
 import { sendToBackground, type AnalysisOutcome } from "../../lib/messages";
 
 const RETRY_DELAY_MS = 60_000;
@@ -25,6 +26,7 @@ class PageController {
   private queued = new Set<string>();
   private pendingCards = new Map<string, Set<HTMLElement>>();
   private flushTimer: number | null = null;
+  private hideShorts = false;
   private shorts: ShortsController;
 
   constructor(private ctx: ContentScriptContext) {
@@ -43,8 +45,15 @@ class PageController {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === "local" && (changes.settings || changes.fundingMode || changes.personalKey)) this.resetForNewRules();
     });
-    this.scheduleScan();
+    void this.loadPreferences();
     this.shorts.onNavigate();
+  }
+
+  private async loadPreferences() {
+    const response = await sendToBackground({ type: "getSettings" });
+    if (response.type === "settings") this.hideShorts = response.settings.hideShorts;
+    hideShortsOnPage(this.hideShorts);
+    this.scheduleScan();
   }
 
   private scheduleScan() {
@@ -56,10 +65,12 @@ class PageController {
   }
 
   private scan() {
+    hideShortsOnPage(this.hideShorts);
     const limit = window.innerHeight + LOOKAHEAD_PX;
     const batch: VideoMetadata[] = [];
     for (const card of document.querySelectorAll<HTMLElement>(CARD_SELECTOR)) {
       if (isNestedCard(card)) continue;
+      if (this.hideShorts && card.closest(".cc-shorts-removed, .cc-shorts-blurred")) continue;
       const rect = card.getBoundingClientRect();
       if (rect.bottom < -200 || rect.top > limit) continue;
       const meta = extractCard(card);
@@ -152,7 +163,7 @@ class PageController {
     this.queued.clear();
     for (const card of document.querySelectorAll<HTMLElement>(`.${DIM_CLASS}`)) clearDim(card);
     this.shorts.reset();
-    this.scheduleScan();
+    void this.loadPreferences();
   }
 }
 

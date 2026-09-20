@@ -91,6 +91,7 @@ export function toRemote(settings: Settings): RemoteSettings {
 export function fromRemote(remote: RemoteSettings): Settings {
   return {
     paused: remote.paused,
+    hideShorts: false,
     categories: remote.categories.map(({ itemId, ...rest }) => ({ id: itemId, ...rest })),
     allowedTopics: remote.allowedTopics.map(({ itemId, ...rest }) => ({ id: itemId, ...rest })),
     allowedChannels: remote.allowedChannels.map(({ itemId, ...rest }) => ({ id: itemId, ...rest })),
@@ -108,6 +109,7 @@ export function mergeByNewest(local: Settings, remote: Settings): Settings {
   };
   return {
     paused: local.paused,
+    hideShorts: local.hideShorts,
     categories: pick(local.categories, remote.categories),
     allowedTopics: pick(local.allowedTopics, remote.allowedTopics),
     allowedChannels: pick(local.allowedChannels, remote.allowedChannels),
