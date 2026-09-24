@@ -1,5 +1,7 @@
 # Content Clam
 
+[![CI](https://github.com/KMalkowski/content-clam/actions/workflows/ci.yml/badge.svg)](https://github.com/KMalkowski/content-clam/actions/workflows/ci.yml)
+
 A Chrome extension that dims YouTube videos matching categories you choose to filter. Every dimmed video shows a reason and a Reveal button. A cute clam is its mascot.
 
 Classification runs on [Jev by TypeSafe AI](https://docs.typesafe.ai). Pay with your own TypeSafe API key, or buy credits from the hosted service. The whole project, including the backend, is MIT licensed.
@@ -36,10 +38,15 @@ WXT opens Chrome with the extension loaded. Open the extension settings, pick "M
 ## Checks
 
 ```sh
+pnpm lint
 pnpm typecheck
 pnpm test
-pnpm --filter @content-clam/extension build
+pnpm build
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Report security problems privately as described in [SECURITY.md](SECURITY.md).
 
 ## Documents
 
@@ -48,3 +55,4 @@ pnpm --filter @content-clam/extension build
 - [Implementation sequence and release checks](docs/implementation.md)
 - [Glossary](CONTEXT.md)
 - [Architecture decisions](docs/adr/)
+- [Changelog](CHANGELOG.md)

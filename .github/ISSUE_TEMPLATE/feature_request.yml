@@ -1,0 +1,15 @@
+name: Feature or category idea
+description: Suggest a change, or a new kind of video to filter.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What bothers you now
+      description: Describe the videos or the situation, ideally with a few example titles.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you'd like instead

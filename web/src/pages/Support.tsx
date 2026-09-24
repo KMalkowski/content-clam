@@ -9,7 +9,7 @@ export function Support() {
       </p>
       <p>
         Found a bug or want to run your own copy? The whole project is open source.{" "}
-        <a href="https://github.com/" rel="noreferrer">
+        <a href="https://github.com/KMalkowski/content-clam" rel="noreferrer">
           Repository
         </a>
       </p>

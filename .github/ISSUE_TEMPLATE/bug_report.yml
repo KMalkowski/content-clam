@@ -1,0 +1,41 @@
+name: Bug report
+description: Something in Content Clam doesn't work.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where on YouTube
+      multiple: true
+      options:
+        - Home
+        - Search
+        - Subscriptions
+        - Watch page sidebar
+        - Shorts
+        - Not on YouTube (popup, settings, website)
+  - type: dropdown
+    id: funding
+    attributes:
+      label: How you pay for analyses
+      options:
+        - My own TypeSafe API key
+        - Content Clam credits
+        - Not set up yet
+  - type: input
+    id: versions
+    attributes:
+      label: Extension and Chrome versions
+      description: The extension version is on chrome://extensions. The Chrome version is on chrome://version.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or console errors
+      description: Please remove your API key and email from anything you paste.
