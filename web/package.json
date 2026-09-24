@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@clerk/react": "^6.16.1",
+    "@content-clam/backend": "workspace:*",
     "@content-clam/shared": "workspace:*",
     "convex": "^1.46.0",
     "react": "^19.3.0",

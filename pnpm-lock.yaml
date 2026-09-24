@@ -57,6 +57,9 @@ importers:
       '@clerk/chrome-extension':
         specifier: ^3.1.84
         version: 3.1.84(@solana/web3.js@1.99.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6))(@types/react@19.3.0)(bs58@6.0.0)(bufferutil@4.1.0)(react-dom@19.3.0(react@19.3.0))(react-native@0.87.1(@babel/core@7.29.7)(@types/react@19.3.0)(bufferutil@4.1.0)(react@19.3.0)(utf-8-validate@6.0.6))(react@19.3.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
+      '@content-clam/backend':
+        specifier: workspace:*
+        version: link:../backend
       '@content-clam/shared':
         specifier: workspace:*
         version: link:../packages/shared
@@ -109,6 +112,9 @@ importers:
       '@clerk/react':
         specifier: ^6.16.1
         version: 6.16.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@content-clam/backend':
+        specifier: workspace:*
+        version: link:../backend
       '@content-clam/shared':
         specifier: workspace:*
         version: link:../packages/shared

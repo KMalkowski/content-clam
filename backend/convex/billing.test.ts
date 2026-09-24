@@ -4,7 +4,6 @@ import { newOperationId, OPERATION_CLOCK_SKEW_MS } from "@content-clam/shared";
 import schema from "./schema";
 import { LEASE_MS, RECEIPT_TTL_MS, reserveCredit, settleCredit, SWEEP_BATCH } from "./billing";
 import { internal } from "./_generated/api";
-import { fulfill } from "./purchases";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -186,9 +185,9 @@ describe("purchase fulfillment", () => {
         createdAt: 0,
       });
     });
-    expect(await t.mutation(fulfill as any, { stripeCheckoutSessionId: "cs_1", paid: true })).toBe("fulfilled");
-    expect(await t.mutation(fulfill as any, { stripeCheckoutSessionId: "cs_1", paid: true })).toBe("already_fulfilled");
-    expect(await t.mutation(fulfill as any, { stripeCheckoutSessionId: "cs_missing", paid: true })).toBe("unknown_session");
+    expect(await t.mutation(internal.purchases.fulfill, { stripeCheckoutSessionId: "cs_1", paid: true })).toBe("fulfilled");
+    expect(await t.mutation(internal.purchases.fulfill, { stripeCheckoutSessionId: "cs_1", paid: true })).toBe("already_fulfilled");
+    expect(await t.mutation(internal.purchases.fulfill, { stripeCheckoutSessionId: "cs_missing", paid: true })).toBe("unknown_session");
     const user = await t.run((ctx) => ctx.db.get(userId));
     expect(user!.balance).toBe(500);
   });

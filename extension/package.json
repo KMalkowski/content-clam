@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@clerk/chrome-extension": "^3.1.84",
+    "@content-clam/backend": "workspace:*",
     "@content-clam/shared": "workspace:*",
     "convex": "^1.46.0",
     "react": "^19.3.0",

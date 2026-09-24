@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { Authenticated, Unauthenticated, useAction, useMutation, useQuery } from "convex/react";
-import { anyApi } from "convex/server";
+import { api } from "@content-clam/backend/api";
 import { Link, useSearchParams } from "react-router";
-
-const api = anyApi as any;
 
 export function Account() {
   return (
@@ -20,20 +18,10 @@ export function Account() {
   );
 }
 
-interface Pack {
-  id: string;
-  name: string;
-  credits: number;
-  amountCents: number;
-  currency: string;
-}
-
 function AccountPanel() {
   const me = useQuery(api.users.me, {});
-  const packs = useQuery(api.purchases.listPacks, {}) as Pack[] | undefined;
-  const history = useQuery(api.purchases.history, {}) as
-    | { packId: string; credits: number; amountCents: number; status: string; createdAt: number }[]
-    | undefined;
+  const packs = useQuery(api.purchases.listPacks, {});
+  const history = useQuery(api.purchases.history, {});
   const ensureUser = useMutation(api.users.ensureUser);
   const startCheckout = useAction(api.purchases.startCheckout);
   const [params] = useSearchParams();
