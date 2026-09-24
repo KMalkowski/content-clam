@@ -16,16 +16,18 @@ export function channelKeyOf(meta: VideoMetadata): string | undefined {
 }
 
 export function metadataFingerprint(meta: VideoMetadata): string {
-  return hash([
-    meta.videoId,
-    meta.title,
-    meta.channelName ?? "",
-    meta.channelHandle ?? "",
-    meta.description ?? "",
-    meta.durationText ?? "",
-    (meta.badges ?? []).join(","),
-    meta.isShort ? "1" : "0",
-  ].join("\u0000"));
+  return hash(
+    [
+      meta.videoId,
+      meta.title,
+      meta.channelName ?? "",
+      meta.channelHandle ?? "",
+      meta.description ?? "",
+      meta.durationText ?? "",
+      (meta.badges ?? []).join(","),
+      meta.isShort ? "1" : "0",
+    ].join("\u0000"),
+  );
 }
 
 export function hash(input: string): string {

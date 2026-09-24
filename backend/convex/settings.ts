@@ -2,12 +2,7 @@ import { v } from "convex/values";
 import { internalQuery, mutation, query } from "./_generated/server";
 import { categoryFields, channelFields, topicFields } from "./schema";
 import { requireUser } from "./users";
-import {
-  MAX_ALLOWED_CHANNELS,
-  MAX_ALLOWED_TOPICS,
-  MAX_CATEGORIES,
-  MAX_DESCRIPTION_CHARS,
-} from "@content-clam/shared";
+import { MAX_ALLOWED_CHANNELS, MAX_ALLOWED_TOPICS, MAX_CATEGORIES, MAX_DESCRIPTION_CHARS } from "@content-clam/shared";
 
 type Collection = "categories" | "allowedTopics" | "allowedChannels";
 const LIMITS: Record<Collection, number> = {
@@ -48,10 +43,22 @@ export const get = query({
       .unique();
     if (!user) return null;
     const [meta, categories, allowedTopics, allowedChannels] = await Promise.all([
-      ctx.db.query("settingsMeta").withIndex("by_user", (q) => q.eq("userId", user._id)).unique(),
-      ctx.db.query("categories").withIndex("by_user", (q) => q.eq("userId", user._id)).collect(),
-      ctx.db.query("allowedTopics").withIndex("by_user", (q) => q.eq("userId", user._id)).collect(),
-      ctx.db.query("allowedChannels").withIndex("by_user", (q) => q.eq("userId", user._id)).collect(),
+      ctx.db
+        .query("settingsMeta")
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .unique(),
+      ctx.db
+        .query("categories")
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("allowedTopics")
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("allowedChannels")
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .collect(),
     ]);
     return {
       paused: meta?.paused ?? false,
@@ -67,7 +74,10 @@ export const setPaused = mutation({
   returns: v.null(),
   handler: async (ctx, { paused, updatedAt }) => {
     const user = await requireUser(ctx);
-    const meta = await ctx.db.query("settingsMeta").withIndex("by_user", (q) => q.eq("userId", user._id)).unique();
+    const meta = await ctx.db
+      .query("settingsMeta")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .unique();
     if (meta && meta.updatedAt > updatedAt) return null;
     if (meta) await ctx.db.patch(meta._id, { paused, updatedAt });
     else await ctx.db.insert("settingsMeta", { userId: user._id, paused, updatedAt });
@@ -133,7 +143,10 @@ export const replaceAll = mutation({
     const user = await requireUser(ctx);
     for (const collection of ["categories", "allowedTopics", "allowedChannels"] as const) {
       if (args[collection].length > LIMITS[collection]) throw new Error(`too_many_${collection}`);
-      const existing = await ctx.db.query(collection).withIndex("by_user", (q) => q.eq("userId", user._id)).collect();
+      const existing = await ctx.db
+        .query(collection)
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .collect();
       await Promise.all(existing.map((doc) => ctx.db.delete(doc._id)));
     }
     for (const c of args.categories) {
@@ -145,7 +158,10 @@ export const replaceAll = mutation({
       await ctx.db.insert("allowedTopics", { userId: user._id, ...t });
     }
     for (const ch of args.allowedChannels) await ctx.db.insert("allowedChannels", { userId: user._id, ...ch });
-    const meta = await ctx.db.query("settingsMeta").withIndex("by_user", (q) => q.eq("userId", user._id)).unique();
+    const meta = await ctx.db
+      .query("settingsMeta")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .unique();
     const now = Date.now();
     if (meta) await ctx.db.patch(meta._id, { paused: args.paused, updatedAt: now });
     else await ctx.db.insert("settingsMeta", { userId: user._id, paused: args.paused, updatedAt: now });
@@ -168,7 +184,12 @@ async function upsert<C extends Collection>(
     await ctx.db.patch(existing._id, item);
     return;
   }
-  const count = (await ctx.db.query(collection).withIndex("by_user", (q: any) => q.eq("userId", user._id)).collect()).length;
+  const count = (
+    await ctx.db
+      .query(collection)
+      .withIndex("by_user", (q: any) => q.eq("userId", user._id))
+      .collect()
+  ).length;
   if (count >= LIMITS[collection]) throw new Error(`too_many_${collection}`);
   await ctx.db.insert(collection, { userId: user._id, ...item });
 }

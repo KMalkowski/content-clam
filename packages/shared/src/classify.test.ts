@@ -9,9 +9,7 @@ const meta: VideoMetadata = { videoId: "abc", title: "You WON'T believe this", i
 describe("buildQuestions", () => {
   it("creates one noul question per category and topic", () => {
     const settings = defaultSettings();
-    const questions = buildQuestions(settings.categories, [
-      { id: "t1", description: "woodworking", updatedAt: 0 },
-    ]);
+    const questions = buildQuestions(settings.categories, [{ id: "t1", description: "woodworking", updatedAt: 0 }]);
     expect(questions).toHaveLength(7);
     expect(questions.filter((q) => q.kind === "topic")).toHaveLength(1);
     expect(new Set(questions.map((q) => q.key)).size).toBe(7);

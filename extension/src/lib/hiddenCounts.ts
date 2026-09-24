@@ -3,11 +3,7 @@ import type { CachedClassification } from "./storage";
 
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-export function hiddenCountsByCategory(
-  cache: Record<string, CachedClassification>,
-  settings: Settings,
-  now = Date.now(),
-): Record<string, number> {
+export function hiddenCountsByCategory(cache: Record<string, CachedClassification>, settings: Settings, now = Date.now()): Record<string, number> {
   const counts: Record<string, number> = {};
   const allIds = settings.categories.map((c) => c.id);
   for (const entry of Object.values(cache)) {

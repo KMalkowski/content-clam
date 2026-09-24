@@ -114,7 +114,11 @@ export const history = query({
   handler: async (ctx) => {
     const user = await findUser(ctx);
     if (!user) return [];
-    const purchases = await ctx.db.query("purchases").withIndex("by_user", (q) => q.eq("userId", user._id)).order("desc").take(50);
+    const purchases = await ctx.db
+      .query("purchases")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .take(50);
     return purchases.map(({ packId, credits, amountCents, currency, status, createdAt }) => ({ packId, credits, amountCents, currency, status, createdAt }));
   },
 });

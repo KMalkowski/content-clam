@@ -1,11 +1,4 @@
-import {
-  BUILT_IN_CATEGORIES,
-  enabledCategories,
-  hash,
-  type Category,
-  type Decision,
-  type Settings,
-} from "@content-clam/shared";
+import { BUILT_IN_CATEGORIES, enabledCategories, hash, type Category, type Decision, type Settings } from "@content-clam/shared";
 
 export function rulesHash(settings: Settings): string {
   const enabled = enabledCategories(settings).map((c) => `${c.id}:${c.description}`);

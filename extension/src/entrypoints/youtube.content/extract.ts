@@ -22,18 +22,31 @@ export function extractCard(card: Element): VideoMetadata | null {
   if (!videoId) return null;
 
   const isShort = href.includes("/shorts/");
-  const title = text(card.querySelector("#video-title, #video-title-link, h3, .yt-lockup-metadata-view-model__title, .shortsLockupViewModelHostMetadataTitle")) || link?.getAttribute("title") || link?.getAttribute("aria-label") || "";
+  const title =
+    text(card.querySelector("#video-title, #video-title-link, h3, .yt-lockup-metadata-view-model__title, .shortsLockupViewModelHostMetadataTitle")) ||
+    link?.getAttribute("title") ||
+    link?.getAttribute("aria-label") ||
+    "";
   if (!title) return null;
 
   const channelLink = card.querySelector<HTMLAnchorElement>('a[href^="/@"], a[href*="/channel/"], a[href*="/c/"]');
-  const channelName = text(card.querySelector("ytd-channel-name #text a, ytd-channel-name #text, .yt-content-metadata-view-model__metadata-row a, #channel-name")) || text(channelLink) || undefined;
+  const channelName =
+    text(card.querySelector("ytd-channel-name #text a, ytd-channel-name #text, .yt-content-metadata-view-model__metadata-row a, #channel-name")) ||
+    text(channelLink) ||
+    undefined;
   const channelHandle = handleFromHref(channelLink?.getAttribute("href"));
   const description = text(card.querySelector("#description-text, .metadata-snippet-text, yt-formatted-string.metadata-snippet-text")) || undefined;
-  const durationText = text(card.querySelector(".badge-shape-wiz__text, .yt-badge-shape__text, #time-status #text, #time-status, ytd-thumbnail-overlay-time-status-renderer")) || undefined;
-  const metadataLine = [...card.querySelectorAll("#metadata-line span, .inline-metadata-item, .yt-content-metadata-view-model__metadata-text")].map((el) => text(el)).filter(Boolean);
+  const durationText =
+    text(card.querySelector(".badge-shape-wiz__text, .yt-badge-shape__text, #time-status #text, #time-status, ytd-thumbnail-overlay-time-status-renderer")) ||
+    undefined;
+  const metadataLine = [...card.querySelectorAll("#metadata-line span, .inline-metadata-item, .yt-content-metadata-view-model__metadata-text")]
+    .map((el) => text(el))
+    .filter(Boolean);
   const viewsText = metadataLine.find((s) => /view/i.test(s));
   const publishedText = metadataLine.find((s) => /ago|streamed|premiere/i.test(s));
-  const badges = [...card.querySelectorAll("ytd-badge-supported-renderer .badge, .yt-badge-shape__text, ytd-badge-supported-renderer span")].map((el) => text(el)).filter((s) => s && !/^\d+:\d+/.test(s));
+  const badges = [...card.querySelectorAll("ytd-badge-supported-renderer .badge, .yt-badge-shape__text, ytd-badge-supported-renderer span")]
+    .map((el) => text(el))
+    .filter((s) => s && !/^\d+:\d+/.test(s));
 
   return {
     videoId,
@@ -94,7 +107,9 @@ export function extractShortsPlayer(): VideoMetadata | null {
   const videoId = currentShortsId();
   if (!videoId) return null;
   const active = activeShortsReel() ?? document;
-  const title = text(active.querySelector(".ytShortsVideoTitleViewModelShortsVideoTitle, yt-shorts-video-title-view-model, h2.title, #shorts-title")) || text(document.querySelector("title")).replace(/ - YouTube$/, "");
+  const title =
+    text(active.querySelector(".ytShortsVideoTitleViewModelShortsVideoTitle, yt-shorts-video-title-view-model, h2.title, #shorts-title")) ||
+    text(document.querySelector("title")).replace(/ - YouTube$/, "");
   if (!title) return null;
   const channelLink = active.querySelector<HTMLAnchorElement>('a[href^="/@"]');
   return {

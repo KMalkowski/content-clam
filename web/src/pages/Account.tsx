@@ -31,7 +31,9 @@ interface Pack {
 function AccountPanel() {
   const me = useQuery(api.users.me, {});
   const packs = useQuery(api.purchases.listPacks, {}) as Pack[] | undefined;
-  const history = useQuery(api.purchases.history, {}) as { packId: string; credits: number; amountCents: number; status: string; createdAt: number }[] | undefined;
+  const history = useQuery(api.purchases.history, {}) as
+    | { packId: string; credits: number; amountCents: number; status: string; createdAt: number }[]
+    | undefined;
   const ensureUser = useMutation(api.users.ensureUser);
   const startCheckout = useAction(api.purchases.startCheckout);
   const [params] = useSearchParams();
@@ -59,7 +61,9 @@ function AccountPanel() {
   return (
     <section className="stack">
       <h1>Your account</h1>
-      {params.get("checkout") === "success" && <p className="notice">Payment received. Credits appear as soon as Stripe confirms it, usually within seconds.</p>}
+      {params.get("checkout") === "success" && (
+        <p className="notice">Payment received. Credits appear as soon as Stripe confirms it, usually within seconds.</p>
+      )}
       {params.get("checkout") === "cancelled" && <p className="notice">Checkout cancelled. Nothing was charged.</p>}
       {me === undefined && <p className="muted">Loading…</p>}
       {me && (
@@ -83,8 +87,8 @@ function AccountPanel() {
         <>
           <h2>Purchases</h2>
           <ul>
-            {history.map((h, i) => (
-              <li key={i}>
+            {history.map((h) => (
+              <li key={`${h.createdAt}:${h.packId}`}>
                 {new Date(h.createdAt).toLocaleDateString()} · {h.credits} credits · {(h.amountCents / 100).toFixed(2)} · {h.status}
               </li>
             ))}

@@ -62,7 +62,12 @@ describe("account-scoped sync", () => {
 
   it("records the choice for the account that adopted remote settings", async () => {
     signedInAs("user_a");
-    hosted.fetchRemoteSettings.mockResolvedValue({ paused: false, categories: [], allowedTopics: [{ itemId: "r1", description: "remote", updatedAt: 1 }], allowedChannels: [] });
+    hosted.fetchRemoteSettings.mockResolvedValue({
+      paused: false,
+      categories: [],
+      allowedTopics: [{ itemId: "r1", description: "remote", updatedAt: 1 }],
+      allowedChannels: [],
+    });
     const settings = await adoptRemoteSettings();
     expect(settings.allowedTopics.map((t) => t.id)).toEqual(["r1"]);
     expect(await syncChoiceFor("user_a")).toBe("asked");

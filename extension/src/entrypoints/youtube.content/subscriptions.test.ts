@@ -31,7 +31,9 @@ describe("subscription feed", () => {
     `window['ytInitialData'] = ${JSON.stringify(initialData)};`,
     `window["ytInitialData"] = ${JSON.stringify(initialData)};`,
   ])("reads subscribed channels from supported YouTube markup", (html) => {
-    expect(subscriptionKeysFromHtml(html)).toEqual(expect.arrayContaining(["First Channel", "firsthandle", "UC_first", "Second Channel", "uc_second", "UC_second"]));
+    expect(subscriptionKeysFromHtml(html)).toEqual(
+      expect.arrayContaining(["First Channel", "firsthandle", "UC_first", "Second Channel", "uc_second", "UC_second"]),
+    );
   });
 
   it.each([

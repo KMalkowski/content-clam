@@ -9,9 +9,7 @@ import { fulfill } from "./purchases";
 const modules = import.meta.glob("./**/*.ts");
 
 async function seedUser(t: ReturnType<typeof convexTest>, balance: number) {
-  return t.run(async (ctx) =>
-    ctx.db.insert("users", { clerkId: "user_1", email: "a@b.c", balance, chargedAnalyses: 0, trialGranted: true, createdAt: 0 }),
-  );
+  return t.run(async (ctx) => ctx.db.insert("users", { clerkId: "user_1", email: "a@b.c", balance, chargedAnalyses: 0, trialGranted: true, createdAt: 0 }));
 }
 
 const attempt = (operationId: string, attemptId = "a1", requestHash = "h1") => ({ operationId, requestHash, attemptId });
@@ -152,8 +150,14 @@ describe("receipt sweep", () => {
     await t.run(async (ctx) => {
       for (let i = 0; i < SWEEP_BATCH + 1; i++) {
         await ctx.db.insert("receipts", {
-          userId, operationId: `op-${i}`, requestHash: "h", attemptId: "a", leaseExpiresAt: 0,
-          status: i === 0 ? "reserved" : "charged", credits: 1, expiresAt: 1,
+          userId,
+          operationId: `op-${i}`,
+          requestHash: "h",
+          attemptId: "a",
+          leaseExpiresAt: 0,
+          status: i === 0 ? "reserved" : "charged",
+          credits: 1,
+          expiresAt: 1,
         });
       }
     });
@@ -172,8 +176,14 @@ describe("purchase fulfillment", () => {
     const userId = await seedUser(t, 0);
     await t.run(async (ctx) => {
       await ctx.db.insert("purchases", {
-        userId, packId: "starter", credits: 500, amountCents: 100, currency: "usd",
-        stripeCheckoutSessionId: "cs_1", status: "pending", createdAt: 0,
+        userId,
+        packId: "starter",
+        credits: 500,
+        amountCents: 100,
+        currency: "usd",
+        stripeCheckoutSessionId: "cs_1",
+        status: "pending",
+        createdAt: 0,
       });
     });
     expect(await t.mutation(fulfill as any, { stripeCheckoutSessionId: "cs_1", paid: true })).toBe("fulfilled");

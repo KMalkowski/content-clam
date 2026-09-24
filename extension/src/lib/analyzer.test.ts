@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { CACHE_TTL_MS, OPERATION_TTL_MS, defaultSettings, type HostedAnalyzeRequest, type HostedAnalyzeResponse, type VideoMetadata } from "@content-clam/shared";
+import {
+  CACHE_TTL_MS,
+  OPERATION_TTL_MS,
+  defaultSettings,
+  type HostedAnalyzeRequest,
+  type HostedAnalyzeResponse,
+  type VideoMetadata,
+} from "@content-clam/shared";
 import { analyzeVideos } from "./analyzer";
 import { fundingModeItem, pendingOperationsItem, writeSettings } from "./storage";
 import { recordSubscriptions } from "./subscriptions";
@@ -9,7 +16,11 @@ const hostedAnalyze = vi.fn<(request: HostedAnalyzeRequest) => Promise<HostedAna
 vi.mock("./hosted", () => ({ hostedAnalyze: (request: HostedAnalyzeRequest) => hostedAnalyze(request) }));
 
 const video: VideoMetadata = { videoId: "v1", title: "Video", channelName: "Chan", viewsText: "1K views", isShort: false };
-const success = (): HostedAnalyzeResponse => ({ ok: true, balance: 1, result: { categoryScores: {}, topicScores: {}, model: "test", inputTokens: 0, requestCount: 1 } });
+const success = (): HostedAnalyzeResponse => ({
+  ok: true,
+  balance: 1,
+  result: { categoryScores: {}, topicScores: {}, model: "test", inputTokens: 0, requestCount: 1 },
+});
 const sentOperationIds = () => hostedAnalyze.mock.calls.map((c) => c[0].operationId);
 
 let now = 1_000_000;

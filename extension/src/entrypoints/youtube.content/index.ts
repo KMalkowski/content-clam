@@ -37,7 +37,12 @@ class PageController {
   private shorts: ShortsController;
 
   constructor(private ctx: ContentScriptContext) {
-    this.shorts = new ShortsController(ctx, (video) => this.requestAnalysis([video]), (id) => this.outcomes.get(id), (id) => this.reveal(id));
+    this.shorts = new ShortsController(
+      ctx,
+      (video) => this.requestAnalysis([video]),
+      (id) => this.outcomes.get(id),
+      (id) => this.reveal(id),
+    );
   }
 
   start() {
@@ -146,9 +151,9 @@ class PageController {
   }
 
   private trackCard(videoId: string, card: HTMLElement) {
-    let set = this.pendingCards.get(videoId);
-    if (!set) this.pendingCards.set(videoId, (set = new Set()));
+    const set = this.pendingCards.get(videoId) ?? new Set();
     set.add(card);
+    this.pendingCards.set(videoId, set);
   }
 
   private async requestAnalysis(videos: VideoMetadata[]) {
@@ -285,7 +290,10 @@ class ShortsController {
     this.revealed.add(videoId);
     if (this.pausedFor === videoId) {
       this.releasePlayer();
-      document.querySelector<HTMLVideoElement>(SHORTS_VIDEO_SELECTOR)?.play().catch(() => undefined);
+      document
+        .querySelector<HTMLVideoElement>(SHORTS_VIDEO_SELECTOR)
+        ?.play()
+        .catch(() => undefined);
     }
     this.removeBanner();
   }

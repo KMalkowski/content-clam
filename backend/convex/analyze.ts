@@ -104,10 +104,7 @@ export const run = action({
   },
 });
 
-function validateRules(args: {
-  categories: { description: string }[];
-  topics: { description: string }[];
-}): string | null {
+function validateRules(args: { categories: { description: string }[]; topics: { description: string }[] }): string | null {
   if (args.categories.length > MAX_CATEGORIES) return `At most ${MAX_CATEGORIES} categories.`;
   if (args.topics.length > MAX_ALLOWED_TOPICS) return `At most ${MAX_ALLOWED_TOPICS} allowed topics.`;
   for (const rule of [...args.categories, ...args.topics]) {

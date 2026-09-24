@@ -12,14 +12,7 @@ export type HostedAnalyzeResponse =
   | { ok: true; result: ClassificationResult; balance: number }
   | { ok: false; code: HostedErrorCode; message: string; balance?: number };
 
-export type HostedErrorCode =
-  | "unauthenticated"
-  | "no_credits"
-  | "rate_limited"
-  | "expired_operation"
-  | "in_progress"
-  | "provider_error"
-  | "invalid_request";
+export type HostedErrorCode = "unauthenticated" | "no_credits" | "rate_limited" | "expired_operation" | "in_progress" | "provider_error" | "invalid_request";
 
 export function canonicalAnalyzeRequest(request: HostedAnalyzeRequest): string {
   const m = request.metadata;

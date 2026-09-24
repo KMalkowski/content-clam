@@ -80,7 +80,7 @@ export function Popup() {
             <span className="count">{counts[c.id] ?? 0}</span>
             <Toggle on={c.enabled} label={`Toggle ${c.name}`} onToggle={(on) => toggleCategory(c.id, on)} />
             <button type="button" className="remove" aria-label={`Remove ${c.name}`} onClick={() => removeCategory(c.id)}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M6 6l12 12M18 6L6 18" />
               </svg>
             </button>

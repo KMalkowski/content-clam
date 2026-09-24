@@ -8,16 +8,13 @@ export const SHORTS_SHELF_SELECTOR = [
   "ytd-rich-item-renderer:has(ytm-shorts-lockup-view-model)",
   "ytd-rich-item-renderer:has(ytm-shorts-lockup-view-model-v2)",
   "ytd-rich-item-renderer:has(> #content > ytd-reel-item-renderer)",
-  "ytd-video-renderer:has(a[href*=\"/shorts/\"]#thumbnail)",
-  "ytd-compact-video-renderer:has(a[href*=\"/shorts/\"]#thumbnail)",
-  "ytd-shelf-renderer:has(ytd-grid-video-renderer a[href*=\"/shorts/\"]#thumbnail)",
-  "ytd-grid-video-renderer:has(a[href*=\"/shorts/\"]#thumbnail)",
+  'ytd-video-renderer:has(a[href*="/shorts/"]#thumbnail)',
+  'ytd-compact-video-renderer:has(a[href*="/shorts/"]#thumbnail)',
+  'ytd-shelf-renderer:has(ytd-grid-video-renderer a[href*="/shorts/"]#thumbnail)',
+  'ytd-grid-video-renderer:has(a[href*="/shorts/"]#thumbnail)',
 ].join(",");
 
-const SHORTS_MENU_SELECTOR = [
-  "ytd-guide-entry-renderer:has(a[href=\"/shorts/\"])",
-  "ytd-mini-guide-entry-renderer:has(a[href=\"/shorts/\"])",
-].join(",");
+const SHORTS_MENU_SELECTOR = ['ytd-guide-entry-renderer:has(a[href="/shorts/"])', 'ytd-mini-guide-entry-renderer:has(a[href="/shorts/"])'].join(",");
 
 const REMOVED_CLASS = "cc-shorts-removed";
 const BLURRED_CLASS = "cc-shorts-blurred";

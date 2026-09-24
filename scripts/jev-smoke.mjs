@@ -18,7 +18,15 @@ const call = createFetchJevCaller(key);
 for (const video of videos) {
   const started = Date.now();
   const result = await classify(video, enabledCategories(settings), settings.allowedTopics, (r) => withBackoff(() => call(r)));
-  const decision = decide(result, enabledCategories(settings).map((c) => c.id));
+  const decision = decide(
+    result,
+    enabledCategories(settings).map((c) => c.id),
+  );
   console.log(`${Date.now() - started}ms  ${result.inputTokens} tokens  ${decision.dimmed ? "DIM " : "keep"}  ${video.title}`);
-  console.log("   ", Object.entries(result.categoryScores).map(([k, v]) => `${k}=${v.toFixed(2)}`).join("  "));
+  console.log(
+    "   ",
+    Object.entries(result.categoryScores)
+      .map(([k, v]) => `${k}=${v.toFixed(2)}`)
+      .join("  "),
+  );
 }

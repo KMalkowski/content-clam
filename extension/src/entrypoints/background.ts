@@ -65,7 +65,14 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
 
 async function status(): Promise<Status> {
   const [fundingMode, personalKey, lastError] = await Promise.all([fundingModeItem.getValue(), personalKeyItem.getValue(), lastErrorItem.getValue()]);
-  const base: Status = { fundingMode, hasPersonalKey: Boolean(personalKey), hostedAvailable: hostedModeAvailable, signedIn: false, lastError: lastError ?? undefined, syncChoice: "unasked" };
+  const base: Status = {
+    fundingMode,
+    hasPersonalKey: Boolean(personalKey),
+    hostedAvailable: hostedModeAvailable,
+    signedIn: false,
+    lastError: lastError ?? undefined,
+    syncChoice: "unasked",
+  };
   if (!hostedModeAvailable) return base;
   const session = await sessionInfo();
   if (!session.signedIn) return base;

@@ -17,7 +17,16 @@ import {
   type Settings,
   type VideoMetadata,
 } from "@content-clam/shared";
-import { cacheItem, fundingModeItem, lastErrorItem, personalKeyItem, pendingOperationsItem, readSettings, type CachedClassification, type PendingOperation } from "./storage";
+import {
+  cacheItem,
+  fundingModeItem,
+  lastErrorItem,
+  personalKeyItem,
+  pendingOperationsItem,
+  readSettings,
+  type CachedClassification,
+  type PendingOperation,
+} from "./storage";
 import { categoryPayload, reasonsFor, rulesHash } from "./rules";
 import type { AnalysisOutcome } from "./messages";
 import { hostedAnalyze } from "./hosted";
@@ -59,13 +68,7 @@ export async function analyzeVideos(videos: VideoMetadata[]): Promise<AnalysisOu
   );
 }
 
-async function runAnalysis(
-  video: VideoMetadata,
-  settings: Settings,
-  fingerprint: string,
-  hashNow: string,
-  enabledIds: string[],
-): Promise<AnalysisOutcome> {
+async function runAnalysis(video: VideoMetadata, settings: Settings, fingerprint: string, hashNow: string, enabledIds: string[]): Promise<AnalysisOutcome> {
   const mode = await fundingModeItem.getValue();
   try {
     let scores: Scores;
@@ -128,7 +131,13 @@ async function operationFor(pendingKey: string, build: () => HostedAnalyzeReques
       throw new Error(EXPIRED_MESSAGE);
     }
     const request = build();
-    const operation: PendingOperation = { operationId: request.operationId, videoId: request.metadata.videoId, createdAt: Date.now(), request, status: "pending" };
+    const operation: PendingOperation = {
+      operationId: request.operationId,
+      videoId: request.metadata.videoId,
+      createdAt: Date.now(),
+      request,
+      status: "pending",
+    };
     pending[pendingKey] = operation;
     await pendingOperationsItem.setValue(pending);
     return operation;

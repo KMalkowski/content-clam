@@ -2,12 +2,7 @@ import type { AllowedTopic, Category } from "./settings";
 import type { VideoMetadata } from "./metadata";
 import type { JevCaller, JevNoulQuestion, JevRequest, JevResponse } from "./jev";
 import { JEV_MODEL } from "./jev";
-import {
-  CATEGORY_MATCH_THRESHOLD,
-  MAX_QUESTIONS_PER_REQUEST,
-  MAX_QUESTION_CHARS_PER_REQUEST,
-  TOPIC_MATCH_THRESHOLD,
-} from "./limits";
+import { CATEGORY_MATCH_THRESHOLD, MAX_QUESTIONS_PER_REQUEST, MAX_QUESTION_CHARS_PER_REQUEST, TOPIC_MATCH_THRESHOLD } from "./limits";
 
 export interface RuleQuestion {
   key: string;
@@ -58,9 +53,7 @@ export function buildQuestions(categories: Category[], topics: AllowedTopic[]): 
       ruleId: category.id,
       question: {
         type: "noul",
-        instructions:
-          `${PREAMBLE}\n\nDoes the video match the category "${category.name}"?\n\n` +
-          `Category definition:\n${category.description.trim()}`,
+        instructions: `${PREAMBLE}\n\nDoes the video match the category "${category.name}"?\n\n` + `Category definition:\n${category.description.trim()}`,
       },
     });
   }
@@ -81,11 +74,7 @@ export function buildQuestions(categories: Category[], topics: AllowedTopic[]): 
   return questions;
 }
 
-export function batchQuestions(
-  questions: RuleQuestion[],
-  maxCount = MAX_QUESTIONS_PER_REQUEST,
-  maxChars = MAX_QUESTION_CHARS_PER_REQUEST,
-): RuleQuestion[][] {
+export function batchQuestions(questions: RuleQuestion[], maxCount = MAX_QUESTIONS_PER_REQUEST, maxChars = MAX_QUESTION_CHARS_PER_REQUEST): RuleQuestion[][] {
   const batches: RuleQuestion[][] = [];
   let current: RuleQuestion[] = [];
   let chars = 0;
@@ -118,12 +107,7 @@ export class IncompleteClassification extends Error {
   }
 }
 
-export async function classify(
-  meta: VideoMetadata,
-  categories: Category[],
-  topics: AllowedTopic[],
-  callJev: JevCaller,
-): Promise<ClassificationResult> {
+export async function classify(meta: VideoMetadata, categories: Category[], topics: AllowedTopic[], callJev: JevCaller): Promise<ClassificationResult> {
   const questions = buildQuestions(categories, topics);
   const result: ClassificationResult = {
     categoryScores: {},
@@ -137,17 +121,12 @@ export async function classify(
   const batches = batchQuestions(questions);
   const responses = await Promise.all(batches.map((batch) => callJev(toRequest(meta, batch))));
   const missing: string[] = [];
-  batches.forEach((batch, i) => mergeResponse(result, batch, responses[i]!, missing));
+  for (const [i, batch] of batches.entries()) mergeResponse(result, batch, responses[i]!, missing);
   if (missing.length > 0) throw new IncompleteClassification(missing);
   return result;
 }
 
-function mergeResponse(
-  result: ClassificationResult,
-  batch: RuleQuestion[],
-  response: JevResponse,
-  missing: string[],
-) {
+function mergeResponse(result: ClassificationResult, batch: RuleQuestion[], response: JevResponse, missing: string[]) {
   result.requestCount += 1;
   result.inputTokens += response.usage?.input_tokens ?? 0;
   result.model = response.model ?? result.model;

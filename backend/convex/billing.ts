@@ -22,12 +22,7 @@ export interface Attempt {
   attemptId: string;
 }
 
-export async function reserveCredit(
-  ctx: MutationCtx,
-  user: Doc<"users">,
-  attempt: Attempt,
-  now: number,
-): Promise<ReserveOutcome> {
+export async function reserveCredit(ctx: MutationCtx, user: Doc<"users">, attempt: Attempt, now: number): Promise<ReserveOutcome> {
   const expiresAt = operationExpiresAt(attempt.operationId, now);
   if (expiresAt === null || expiresAt <= now) return { status: "expired" };
 
@@ -66,7 +61,7 @@ export async function settleCredit(
   const user = await ctx.db.get(userId);
   if (!user) throw new Error("user_missing");
   const receipt = await findReceipt(ctx, userId, attempt.operationId);
-  if (!receipt || receipt.status !== "reserved" || receipt.attemptId !== attempt.attemptId) return user.balance;
+  if (receipt?.status !== "reserved" || receipt.attemptId !== attempt.attemptId) return user.balance;
   if (outcome === "charged") {
     await ctx.db.patch(receipt._id, { status: "charged" });
     await ctx.db.patch(userId, { chargedAnalyses: user.chargedAnalyses + receipt.credits });

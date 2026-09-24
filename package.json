@@ -10,10 +10,16 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "jev:smoke": "tsx scripts/jev-smoke.mjs"
+    "jev:smoke": "tsx scripts/jev-smoke.mjs",
+    "lint": "biome check .",
+    "format": "biome check --write ."
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
     "tsx": "^4.23.15",
     "typescript": "~5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

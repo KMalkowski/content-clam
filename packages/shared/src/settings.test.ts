@@ -19,10 +19,7 @@ describe("parseSettings", () => {
   });
 
   it("fills optional fields and normalizes channel keys", () => {
-    const parsed = parseSettings(
-      { categories: [{ id: "x", name: "X", description: "d" }], allowedChannels: [{ id: "c", channelKey: "@Some Channel " }] },
-      42,
-    );
+    const parsed = parseSettings({ categories: [{ id: "x", name: "X", description: "d" }], allowedChannels: [{ id: "c", channelKey: "@Some Channel " }] }, 42);
     expect(parsed.paused).toBe(false);
     expect(parsed.keepSubscribed).toBe(true);
     expect(parsed.categories[0]).toEqual({ id: "x", name: "X", description: "d", enabled: true, updatedAt: 42 });

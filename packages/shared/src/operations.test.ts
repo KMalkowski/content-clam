@@ -48,7 +48,11 @@ describe("serialQueue", () => {
 
   it("keeps going after a failed update", async () => {
     const run = serialQueue();
-    await expect(run(async () => { throw new Error("boom"); })).rejects.toThrow("boom");
+    await expect(
+      run(async () => {
+        throw new Error("boom");
+      }),
+    ).rejects.toThrow("boom");
     expect(await run(async () => "ok")).toBe("ok");
   });
 });
