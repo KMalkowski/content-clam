@@ -57,7 +57,7 @@ export async function analyzeVideos(videos: VideoMetadata[]): Promise<AnalysisOu
       if (cached && cached.fingerprint === fingerprint && cached.rulesHash === hashNow && Date.now() - cached.analyzedAt < CACHE_TTL_MS) {
         return outcome(video.videoId, cached.result, settings, enabledIds);
       }
-      const key = `${video.videoId}:${hashNow}`;
+      const key = `${video.videoId}:${hashNow}:${fingerprint}`;
       let job = inFlight.get(key);
       if (!job) {
         job = runAnalysis(video, settings, fingerprint, hashNow, enabledIds).finally(() => inFlight.delete(key));
@@ -97,7 +97,7 @@ async function runAnalysis(video: VideoMetadata, settings: Settings, fingerprint
   }
 
   async function analyzeHosted(): Promise<Scores> {
-    const pendingKey = `${video.videoId}:${hashNow}`;
+    const pendingKey = `${video.videoId}:${hashNow}:${fingerprint}`;
     const operation = await operationFor(pendingKey, () => ({
       operationId: newOperationId(),
       metadata: video,

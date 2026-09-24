@@ -9,7 +9,7 @@ import {
   type VideoMetadata,
 } from "@content-clam/shared";
 import { analyzeVideos } from "./analyzer";
-import { fundingModeItem, pendingOperationsItem, writeSettings } from "./storage";
+import { fundingModeItem, pendingOperationsItem, settingsItem } from "./storage";
 import { recordSubscriptions } from "./subscriptions";
 
 const hostedAnalyze = vi.fn<(request: HostedAnalyzeRequest) => Promise<HostedAnalyzeResponse>>();
@@ -90,6 +90,19 @@ describe("hosted analysis operations", () => {
     expect(second!.metadata.viewsText).toBe("1K views");
   });
 
+  it("analyzes a changed title separately instead of reusing the old operation", async () => {
+    hostedAnalyze.mockRejectedValueOnce(new Error("network"));
+    await analyzeVideos([video]);
+    hostedAnalyze.mockResolvedValue(success());
+    const renamed = { ...video, title: "Renamed video" };
+    await analyzeVideos([renamed]);
+    const [first, second] = hostedAnalyze.mock.calls.map((c) => c[0]);
+    expect(second!.operationId).not.toBe(first!.operationId);
+    expect(second!.metadata.title).toBe("Renamed video");
+    await analyzeVideos([renamed]);
+    expect(hostedAnalyze).toHaveBeenCalledTimes(2);
+  });
+
   it("clears the pending record after a successful result", async () => {
     hostedAnalyze.mockResolvedValue(success());
     await analyzeVideos([video]);
@@ -126,7 +139,7 @@ describe("subscribed channels", () => {
 
   it("analyzes subscribed channels when the option is off", async () => {
     await recordSubscriptions(["@Chan"]);
-    await writeSettings({ ...defaultSettings(), keepSubscribed: false });
+    await settingsItem.setValue({ ...defaultSettings(), keepSubscribed: false });
     hostedAnalyze.mockResolvedValue(success());
     await analyzeVideos([video]);
     expect(hostedAnalyze).toHaveBeenCalledTimes(1);

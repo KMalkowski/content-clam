@@ -8,10 +8,12 @@ import {
   MAX_CATEGORIES,
   MAX_ALLOWED_TOPICS,
   MAX_DESCRIPTION_CHARS,
+  canonicalAnalyzeRequest,
+  isOperationExpired,
+  type HostedAnalyzeRequest,
   type HostedAnalyzeResponse,
 } from "@content-clam/shared";
 import { rateLimiter } from "./rateLimits";
-import { canonicalAnalyzeRequest, isOperationExpired, type HostedAnalyzeRequest } from "@content-clam/shared";
 
 const ruleValidator = v.object({ id: v.string(), name: v.string(), description: v.string() });
 const topicValidator = v.object({ id: v.string(), description: v.string() });
@@ -44,6 +46,13 @@ export const run = action({
       return { ok: false, code: "expired_operation", message: "This request expired. Start a new one." };
     }
 
+    const apiKey = process.env.JEV_API_KEY;
+    if (!apiKey) return { ok: false, code: "provider_error", message: "The classification service is not configured." };
+    const callJev = createFetchJevCaller(apiKey);
+
+    const userId = await ctx.runQuery(internal.settings.userIdByClerkId, { clerkId: identity.subject });
+    if (!userId) return { ok: false, code: "unauthenticated", message: "Account not found. Open the popup to finish sign-in." };
+
     const limit = await rateLimiter.limit(ctx, "analyze", { key: identity.subject });
     if (!limit.ok) return { ok: false, code: "rate_limited", message: "Too many requests. Slow down a little." };
 
@@ -68,13 +77,6 @@ export const run = action({
     if (reservation.status === "in_progress") {
       return { ok: false, code: "in_progress", message: "This analysis is still running. Try again in a moment." };
     }
-
-    const apiKey = process.env.JEV_API_KEY;
-    if (!apiKey) throw new Error("JEV_API_KEY is not configured");
-    const callJev = createFetchJevCaller(apiKey);
-
-    const userId = await ctx.runQuery(internal.settings.userIdByClerkId, { clerkId: identity.subject });
-    if (!userId) return { ok: false, code: "unauthenticated", message: "Account not found." };
 
     try {
       const result = await classify(
