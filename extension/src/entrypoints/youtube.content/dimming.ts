@@ -15,21 +15,22 @@ export function applyOutcome(card: HTMLElement, outcome: AnalysisOutcome, handle
     clearDim(card);
     return;
   }
-  card.classList.add(DIM_CLASS);
-  card.dataset.ccVideo = outcome.videoId;
+  if (!card.classList.contains(DIM_CLASS)) card.classList.add(DIM_CLASS);
+  if (card.dataset.ccVideo !== outcome.videoId) card.dataset.ccVideo = outcome.videoId;
   let overlay = card.querySelector<HTMLElement>(`.${OVERLAY_CLASS}`);
   if (!overlay) {
     overlay = buildOverlay(outcome.videoId, handlers);
     card.append(overlay);
   }
   const reason = overlay.querySelector<HTMLElement>(".cc-reason");
-  if (reason) reason.textContent = outcome.reasons[0] ?? "Matched a filter";
+  const text = outcome.reasons[0] ?? "Matched a filter";
+  if (reason && reason.textContent !== text) reason.textContent = text;
 }
 
 export function clearDim(card: HTMLElement) {
-  card.classList.remove(DIM_CLASS);
+  if (card.classList.contains(DIM_CLASS)) card.classList.remove(DIM_CLASS);
   card.querySelector(`.${OVERLAY_CLASS}`)?.remove();
-  delete card.dataset.ccVideo;
+  if (card.dataset.ccVideo !== undefined) delete card.dataset.ccVideo;
 }
 
 function buildOverlay(videoId: string, handlers: DimHandlers): HTMLElement {
@@ -37,6 +38,10 @@ function buildOverlay(videoId: string, handlers: DimHandlers): HTMLElement {
   overlay.className = OVERLAY_CLASS;
   overlay.setAttribute("role", "group");
   overlay.setAttribute("aria-label", "Content Clam filter");
+
+  const label = document.createElement("span");
+  label.className = "cc-label";
+  label.textContent = "Hidden by Content Clam";
 
   const reason = document.createElement("span");
   reason.className = "cc-reason";
@@ -56,7 +61,7 @@ function buildOverlay(videoId: string, handlers: DimHandlers): HTMLElement {
   );
   menuWrap.append(menuButton, menu);
 
-  overlay.append(reason, reveal, menuWrap);
+  overlay.append(label, reason, reveal, menuWrap);
   overlay.addEventListener("click", (e) => e.stopPropagation());
   return overlay;
 }

@@ -55,6 +55,9 @@ export default defineSchema({
   receipts: defineTable({
     userId: v.id("users"),
     operationId: v.string(),
+    requestHash: v.string(),
+    attemptId: v.string(),
+    leaseExpiresAt: v.number(),
     status: v.union(v.literal("reserved"), v.literal("charged"), v.literal("released")),
     credits: v.number(),
     expiresAt: v.number(),

@@ -57,8 +57,13 @@ export function parseVideoId(href: string): string | null {
 }
 
 export function handleFromHref(href: string | null | undefined): string | undefined {
-  const match = href?.match(/\/@([^/?#]+)/);
-  return match?.[1]?.toLowerCase();
+  const match = href?.match(/\/(?:@|channel\/|c\/)([^/?#]+)/);
+  if (!match?.[1]) return undefined;
+  try {
+    return decodeURIComponent(match[1]).toLowerCase();
+  } catch {
+    return match[1].toLowerCase();
+  }
 }
 
 function text(el: Element | null | undefined): string {

@@ -20,6 +20,9 @@ A choice to open a video that the viewer later considers a poor use of their tim
 **Credits**:
 A prepaid balance used to pay for feed curation. One credit buys one successfully completed video analysis within the service's published limits.
 
+**Keep subscriptions**:
+A viewer's choice, on by default, to leave videos from subscribed channels visible without analysis. Subscriptions are learned from YouTube pages on the device and never synced.
+
 **Hide Shorts**:
 A viewer's choice to remove every Shorts shelf, card, and menu entry without analysis. Content already on screen is blurred rather than removed so the page does not jump.
 

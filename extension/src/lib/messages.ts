@@ -13,9 +13,11 @@ export type BackgroundRequest =
   | { type: "getSettings" }
   | { type: "updateSettings"; settings: Settings }
   | { type: "getStatus" }
+  | { type: "getHiddenCounts" }
   | { type: "setFundingMode"; mode: FundingMode }
   | { type: "setPersonalKey"; key: string | null }
   | { type: "revealVideo"; videoId: string }
+  | { type: "recordSubscriptions"; channelKeys: string[] }
   | { type: "syncFromServer" }
   | { type: "pushSettingsToServer" }
   | { type: "openSignIn" }
@@ -29,12 +31,14 @@ export interface Status {
   email?: string;
   balance?: number;
   lastError?: string;
+  syncChoice: "asked" | "unasked";
 }
 
 export type BackgroundResponse =
   | { type: "analysis"; outcomes: AnalysisOutcome[] }
   | { type: "settings"; settings: Settings }
   | { type: "status"; status: Status }
+  | { type: "hiddenCounts"; counts: Record<string, number> }
   | { type: "ok" }
   | { type: "error"; message: string };
 

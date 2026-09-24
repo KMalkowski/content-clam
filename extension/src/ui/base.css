@@ -122,6 +122,8 @@ textarea {
   color: #c0392b;
 }
 
-.clam {
-  font-size: 22px;
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }

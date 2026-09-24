@@ -9,6 +9,25 @@ interface Props {
   refreshSettings: () => Promise<void>;
 }
 
+function SyncChoice({ status, busy, run }: { status: Status; busy: boolean; run: (label: string, work: () => Promise<unknown>) => Promise<void> }) {
+  const unasked = status.syncChoice === "unasked";
+  return (
+    <div className="card stack">
+      {unasked ? (
+        <p>
+          <strong>Choose which settings to keep.</strong> Your account may already hold settings from another device. Settings on this device are not synced until you pick one.
+        </p>
+      ) : (
+        <p className="muted">Settings changes on this device sync to your account. Use these to replace one side completely.</p>
+      )}
+      <div className="row">
+        <button className={unasked ? "primary" : undefined} disabled={busy} onClick={() => run("Loaded settings from your account.", () => sendToBackground({ type: "syncFromServer" }))}>Use account settings</button>
+        <button className={unasked ? "primary" : undefined} disabled={busy} onClick={() => run("Saved this device's settings to your account.", () => sendToBackground({ type: "pushSettingsToServer" }))}>Upload these settings</button>
+      </div>
+    </div>
+  );
+}
+
 export function FundingSection({ status, refreshStatus, refreshSettings }: Props) {
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
@@ -91,9 +110,8 @@ export function FundingSection({ status, refreshStatus, refreshSettings }: Props
                     {status.lastError && <p className="error">{status.lastError}</p>}
                     <div className="row">
                       <a href={`${env.webUrl}/account`} target="_blank" rel="noreferrer"><button className="primary">Buy credits</button></a>
-                      <button disabled={busy} onClick={() => run("Loaded settings from your account.", () => sendToBackground({ type: "syncFromServer" }))}>Use account settings</button>
-                      <button disabled={busy} onClick={() => run("Saved this device's settings to your account.", () => sendToBackground({ type: "pushSettingsToServer" }))}>Upload these settings</button>
                     </div>
+                    <SyncChoice status={status} busy={busy} run={run} />
                   </>
                 ) : (
                   <button className="primary" onClick={() => sendToBackground({ type: "openSignIn" })}>Sign in or create account</button>

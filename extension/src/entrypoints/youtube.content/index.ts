@@ -5,6 +5,7 @@ import { LOOKAHEAD_PX, normalizeChannelKey, type VideoMetadata } from "@content-
 import { CARD_SELECTOR, SHORTS_VIDEO_SELECTOR, extractCard, extractShortsPlayer, currentShortsId, isNestedCard } from "./extract";
 import { applyOutcome, clearDim, DIM_CLASS } from "./dimming";
 import { hideShortsOnPage } from "./shorts";
+import { subscribedChannelsFromFeed, subscribedChannelsOnPage } from "./subscriptions";
 import { sendToBackground, type AnalysisOutcome } from "../../lib/messages";
 
 const RETRY_DELAY_MS = 60_000;
@@ -27,6 +28,12 @@ class PageController {
   private pendingCards = new Map<string, Set<HTMLElement>>();
   private flushTimer: number | null = null;
   private hideShorts = false;
+  private keepSubscribed = true;
+  private recordingSubscriptions = false;
+  private seenSubscriptionKeys = new Set<string>();
+  private subscriptionsFromFeed: Promise<void> | null = null;
+  private preferencesReady = false;
+  private generation = 0;
   private shorts: ShortsController;
 
   constructor(private ctx: ContentScriptContext) {
@@ -51,9 +58,27 @@ class PageController {
 
   private async loadPreferences() {
     const response = await sendToBackground({ type: "getSettings" });
-    if (response.type === "settings") this.hideShorts = response.settings.hideShorts;
+    if (response.type === "settings") {
+      this.hideShorts = response.settings.hideShorts;
+      this.keepSubscribed = response.settings.keepSubscribed;
+    }
+    if (this.keepSubscribed) await this.loadSubscriptionsFromFeed();
+    this.preferencesReady = true;
     hideShortsOnPage(this.hideShorts);
     this.scheduleScan();
+  }
+
+  private loadSubscriptionsFromFeed(): Promise<void> {
+    if (!this.subscriptionsFromFeed) {
+      this.subscriptionsFromFeed = subscribedChannelsFromFeed()
+        .then(async (keys) => {
+          if (!keys.length) return;
+          for (const key of keys) this.seenSubscriptionKeys.add(normalizeChannelKey(key));
+          await sendToBackground({ type: "recordSubscriptions", channelKeys: keys });
+        })
+        .catch(() => undefined);
+    }
+    return this.subscriptionsFromFeed;
   }
 
   private scheduleScan() {
@@ -65,9 +90,11 @@ class PageController {
   }
 
   private scan() {
+    if (!this.preferencesReady) return;
     hideShortsOnPage(this.hideShorts);
     const limit = window.innerHeight + LOOKAHEAD_PX;
     const batch: VideoMetadata[] = [];
+    const cardsOnPage: VideoMetadata[] = [];
     for (const card of document.querySelectorAll<HTMLElement>(CARD_SELECTOR)) {
       if (isNestedCard(card)) continue;
       if (this.hideShorts && card.closest(".cc-shorts-removed, .cc-shorts-blurred")) continue;
@@ -75,6 +102,7 @@ class PageController {
       if (rect.bottom < -200 || rect.top > limit) continue;
       const meta = extractCard(card);
       if (!meta) continue;
+      cardsOnPage.push(meta);
       if (card.dataset.ccVideo && card.dataset.ccVideo !== meta.videoId) clearDim(card);
       const known = this.outcomes.get(meta.videoId);
       if (known) {
@@ -89,7 +117,32 @@ class PageController {
         batch.push(meta);
       }
     }
-    if (batch.length) this.requestAnalysis(batch.sort((a, b) => viewportDistance(a) - viewportDistance(b)));
+
+    if (this.keepSubscribed) {
+      const discovered = subscribedChannelsOnPage(cardsOnPage);
+      const fresh = discovered.filter((key) => !this.seenSubscriptionKeys.has(normalizeChannelKey(key)));
+      if (fresh.length) {
+        const normalized = fresh.map(normalizeChannelKey);
+        for (const key of normalized) this.seenSubscriptionKeys.add(key);
+        this.recordingSubscriptions = true;
+        void sendToBackground({ type: "recordSubscriptions", channelKeys: fresh }).then(
+          () => {
+            this.recordingSubscriptions = false;
+            this.resetForNewRules();
+          },
+          () => {
+            this.recordingSubscriptions = false;
+            for (const key of normalized) this.seenSubscriptionKeys.delete(key);
+            if (batch.length) void this.requestAnalysis(batch);
+          },
+        );
+        return;
+      }
+    }
+    if (this.recordingSubscriptions) return;
+    if (!batch.length) return;
+    batch.sort((a, b) => viewportDistance(a) - viewportDistance(b));
+    void this.requestAnalysis(batch);
   }
 
   private trackCard(videoId: string, card: HTMLElement) {
@@ -99,12 +152,15 @@ class PageController {
   }
 
   private async requestAnalysis(videos: VideoMetadata[]) {
+    const generation = this.generation;
     for (const chunk of chunks(videos, 12)) {
       try {
         const response = await sendToBackground({ type: "analyze", videos: chunk });
+        if (generation !== this.generation) return;
         if (response.type !== "analysis") continue;
         for (const outcome of response.outcomes) this.receive(outcome);
       } catch {
+        if (generation !== this.generation) return;
         for (const v of chunk) {
           this.queued.delete(v.videoId);
           this.retryAfter.set(v.videoId, Date.now() + RETRY_DELAY_MS);
@@ -158,6 +214,8 @@ class PageController {
   }
 
   private resetForNewRules() {
+    this.generation++;
+    this.preferencesReady = false;
     this.outcomes.clear();
     this.retryAfter.clear();
     this.queued.clear();
@@ -170,6 +228,7 @@ class PageController {
 class ShortsController {
   private banner: HTMLElement | null = null;
   private pausedFor: string | null = null;
+  private releaseGuard: (() => void) | null = null;
   private revealed = new Set<string>();
   private pollTimer: number | null = null;
 
@@ -178,9 +237,12 @@ class ShortsController {
     private analyze: (video: VideoMetadata) => void,
     private lookup: (videoId: string) => AnalysisOutcome | undefined,
     private revealCard: (videoId: string) => void,
-  ) {}
+  ) {
+    ctx.onInvalidated(() => this.releasePlayer());
+  }
 
   onNavigate() {
+    this.releasePlayer();
     this.removeBanner();
     if (this.pollTimer !== null) {
       clearInterval(this.pollTimer);
@@ -208,27 +270,35 @@ class ShortsController {
     if (!outcome.decision?.dimmed || this.revealed.has(outcome.videoId)) return;
     const video = document.querySelector<HTMLVideoElement>(SHORTS_VIDEO_SELECTOR);
     if (!video) return;
+    this.releasePlayer();
     video.pause();
     this.pausedFor = outcome.videoId;
     const keepPaused = () => {
-      if (this.pausedFor === outcome.videoId && !this.revealed.has(outcome.videoId)) video.pause();
+      if (this.pausedFor === outcome.videoId && currentShortsId() === outcome.videoId && !this.revealed.has(outcome.videoId)) video.pause();
     };
-    this.ctx.addEventListener(video, "play", keepPaused);
+    video.addEventListener("play", keepPaused);
+    this.releaseGuard = () => video.removeEventListener("play", keepPaused);
     this.showBanner(outcome);
   }
 
   onReveal(videoId: string) {
     this.revealed.add(videoId);
     if (this.pausedFor === videoId) {
-      this.pausedFor = null;
+      this.releasePlayer();
       document.querySelector<HTMLVideoElement>(SHORTS_VIDEO_SELECTOR)?.play().catch(() => undefined);
     }
     this.removeBanner();
   }
 
   reset() {
-    this.pausedFor = null;
+    this.releasePlayer();
     this.removeBanner();
+  }
+
+  private releasePlayer() {
+    this.pausedFor = null;
+    this.releaseGuard?.();
+    this.releaseGuard = null;
   }
 
   private showBanner(outcome: AnalysisOutcome) {

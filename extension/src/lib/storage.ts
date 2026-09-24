@@ -1,5 +1,5 @@
 import { storage } from "wxt/utils/storage";
-import { defaultSettings, type Settings, type ClassificationResult } from "@content-clam/shared";
+import { defaultSettings, parseSettings, sanitizeSettings, type HostedAnalyzeRequest, type Settings, type ClassificationResult } from "@content-clam/shared";
 
 export type FundingMode = "none" | "personal-key" | "hosted";
 
@@ -14,13 +14,20 @@ export interface PendingOperation {
   operationId: string;
   videoId: string;
   createdAt: number;
+  request: HostedAnalyzeRequest;
+  status: "pending" | "expired";
+}
+
+export interface SyncAccount {
+  baseline: Settings;
 }
 
 export const settingsItem = storage.defineItem<Settings>("local:settings", {
   fallback: defaultSettings(),
-  version: 2,
+  version: 3,
   migrations: {
-    2: (old: Omit<Settings, "hideShorts">) => ({ ...old, hideShorts: false }),
+    2: (old: Omit<Settings, "hideShorts" | "keepSubscribed">) => ({ ...old, hideShorts: false }),
+    3: (old: Omit<Settings, "keepSubscribed">) => ({ ...old, keepSubscribed: true }),
   },
 });
 
@@ -38,11 +45,29 @@ export const cacheItem = storage.defineItem<Record<string, CachedClassification>
 
 export const pendingOperationsItem = storage.defineItem<Record<string, PendingOperation>>("local:pendingOperations", {
   fallback: {},
+  version: 2,
+  migrations: {
+    2: () => ({}),
+  },
 });
 
-export const syncChoiceItem = storage.defineItem<"asked" | "unasked">("local:syncChoice", {
-  fallback: "unasked",
+export const subscribedChannelsItem = storage.defineItem<Record<string, number>>("local:subscribedChannels", {
+  fallback: {},
 });
+
+export const syncAccountsItem = storage.defineItem<Record<string, SyncAccount>>("local:syncAccounts", {
+  fallback: {},
+});
+
+export async function readSettings(): Promise<Settings> {
+  return sanitizeSettings(await settingsItem.getValue()) ?? defaultSettings();
+}
+
+export async function writeSettings(input: unknown): Promise<Settings> {
+  const settings = parseSettings(input);
+  await settingsItem.setValue(settings);
+  return settings;
+}
 
 export const revealedItem = storage.defineItem<Record<string, number>>("session:revealed", {
   fallback: {},

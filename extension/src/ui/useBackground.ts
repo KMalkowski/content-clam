@@ -29,3 +29,13 @@ export function useStatus() {
   }, [refresh]);
   return { status, refresh };
 }
+
+export function useHiddenCounts() {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    void sendToBackground({ type: "getHiddenCounts" }).then((response) => {
+      if (response.type === "hiddenCounts") setCounts(response.counts);
+    });
+  }, []);
+  return counts;
+}

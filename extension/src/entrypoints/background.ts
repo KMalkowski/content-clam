@@ -1,9 +1,12 @@
 import { defineBackground } from "wxt/utils/define-background";
 import { analyzeVideos } from "../lib/analyzer";
 import type { BackgroundRequest, BackgroundResponse, Status } from "../lib/messages";
-import { fundingModeItem, lastErrorItem, personalKeyItem, revealedItem, settingsItem, syncChoiceItem } from "../lib/storage";
+import { cacheItem, fundingModeItem, lastErrorItem, personalKeyItem, readSettings, revealedItem, writeSettings } from "../lib/storage";
+import { recordSubscriptions } from "../lib/subscriptions";
+import { hiddenCountsByCategory } from "../lib/hiddenCounts";
 import { env, hostedModeAvailable } from "../lib/env";
-import { ensureAccount, fetchAccount, fetchRemoteSettings, fromRemote, pushSettings, sessionInfo } from "../lib/hosted";
+import { ensureAccount, fetchAccount, sessionInfo } from "../lib/hosted";
+import { adoptRemoteSettings, pushIfSyncing, syncChoiceFor, uploadLocalSettings } from "../lib/sync";
 
 export default defineBackground(() => {
   chrome.runtime.onMessage.addListener((request: BackgroundRequest, _sender, sendResponse) => {
@@ -19,14 +22,18 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
     case "analyze":
       return { type: "analysis", outcomes: await analyzeVideos(request.videos) };
     case "getSettings":
-      return { type: "settings", settings: await settingsItem.getValue() };
+      return { type: "settings", settings: await readSettings() };
     case "updateSettings": {
-      await settingsItem.setValue(request.settings);
-      void pushIfSyncing(request);
+      const settings = await writeSettings(request.settings);
+      void pushIfSyncing(settings);
       return { type: "ok" };
     }
     case "getStatus":
       return { type: "status", status: await status() };
+    case "getHiddenCounts": {
+      const [cache, settings] = await Promise.all([cacheItem.getValue(), readSettings()]);
+      return { type: "hiddenCounts", counts: hiddenCountsByCategory(cache, settings) };
+    }
     case "setFundingMode":
       await fundingModeItem.setValue(request.mode);
       return { type: "ok" };
@@ -39,19 +46,14 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
       await revealedItem.setValue(revealed);
       return { type: "ok" };
     }
-    case "syncFromServer": {
-      await ensureAccount();
-      const remote = await fetchRemoteSettings();
-      if (remote) await settingsItem.setValue(fromRemote(remote));
-      await syncChoiceItem.setValue("asked");
-      return { type: "settings", settings: await settingsItem.getValue() };
-    }
-    case "pushSettingsToServer": {
-      await ensureAccount();
-      await pushSettings(await settingsItem.getValue());
-      await syncChoiceItem.setValue("asked");
+    case "recordSubscriptions":
+      await recordSubscriptions(request.channelKeys);
       return { type: "ok" };
-    }
+    case "syncFromServer":
+      return { type: "settings", settings: await adoptRemoteSettings() };
+    case "pushSettingsToServer":
+      await uploadLocalSettings();
+      return { type: "ok" };
     case "openSignIn":
       await chrome.tabs.create({ url: `${env.webUrl}/sign-in` });
       return { type: "ok" };
@@ -61,24 +63,17 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
   }
 }
 
-async function pushIfSyncing(request: { settings: unknown }) {
-  const mode = await fundingModeItem.getValue();
-  if (mode !== "hosted") return;
-  const session = await sessionInfo();
-  if (!session.signedIn) return;
-  await pushSettings(request.settings as Awaited<ReturnType<typeof settingsItem.getValue>>).catch(() => undefined);
-}
-
 async function status(): Promise<Status> {
   const [fundingMode, personalKey, lastError] = await Promise.all([fundingModeItem.getValue(), personalKeyItem.getValue(), lastErrorItem.getValue()]);
-  const base: Status = { fundingMode, hasPersonalKey: Boolean(personalKey), hostedAvailable: hostedModeAvailable, signedIn: false, lastError: lastError ?? undefined };
+  const base: Status = { fundingMode, hasPersonalKey: Boolean(personalKey), hostedAvailable: hostedModeAvailable, signedIn: false, lastError: lastError ?? undefined, syncChoice: "unasked" };
   if (!hostedModeAvailable) return base;
   const session = await sessionInfo();
   if (!session.signedIn) return base;
+  const syncChoice = await syncChoiceFor(session.userId);
   try {
     const account = (await fetchAccount()) ?? (await ensureAccount().then(() => fetchAccount()));
-    return { ...base, signedIn: true, email: session.email ?? account?.email, balance: account?.balance };
+    return { ...base, signedIn: true, syncChoice, email: session.email ?? account?.email, balance: account?.balance };
   } catch (error) {
-    return { ...base, signedIn: true, email: session.email, lastError: error instanceof Error ? error.message : String(error) };
+    return { ...base, signedIn: true, syncChoice, email: session.email, lastError: error instanceof Error ? error.message : String(error) };
   }
 }

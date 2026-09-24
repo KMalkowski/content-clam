@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BUILT_IN_CATEGORIES,
   BUILT_IN_CATEGORY_IDS,
@@ -6,6 +6,7 @@ import {
   MAX_CATEGORIES,
   MAX_DESCRIPTION_CHARS,
   normalizeChannelKey,
+  parseSettings,
   type Settings,
 } from "@content-clam/shared";
 import { useSettings, useStatus } from "../../ui/useBackground";
@@ -21,11 +22,11 @@ export function Options() {
   return (
     <main style={{ maxWidth: 760, margin: "0 auto", padding: 24 }}>
       <div className="row">
-        <span className="clam" aria-hidden>🐚</span>
+        <img className="brand-mark" src="/brand/content-clam-logo.png" alt="" />
         <h1>Content Clam settings</h1>
       </div>
       <p className="muted">
-        Videos stay visible unless they match a filter you enabled. Changing a description means matching videos need a fresh analysis, which can use credits.
+        Videos stay visible unless they match a filter you enabled. Saving a changed description means matching videos need a fresh analysis, which can use credits. Edits are not applied until you press Save.
       </p>
 
       <FundingSection status={statusHook.status} refreshStatus={statusHook.refresh} refreshSettings={refresh} />
@@ -37,6 +38,15 @@ export function Options() {
           Hide Shorts everywhere
         </label>
         <p className="muted">Removes Shorts shelves and cards without analysis or credits. Anything already on screen is blurred instead of removed, so the page does not jump.</p>
+      </section>
+
+      <section>
+        <h2>Subscriptions</h2>
+        <label className="switch">
+          <input type="checkbox" checked={settings.keepSubscribed} onChange={(e) => save({ ...settings, keepSubscribed: e.target.checked })} />
+          Never hide videos from channels I subscribe to
+        </label>
+        <p className="muted">Content Clam learns your subscriptions from the YouTube sidebar, the Subscriptions feed, and the Channels page as you browse. The list stays on this device and is never uploaded.</p>
       </section>
 
       <Categories settings={settings} save={save} />
@@ -58,7 +68,7 @@ function Categories({ settings, save }: { settings: Settings; save: (s: Settings
     save({ ...settings, categories: settings.categories.map((c) => (c.id === id ? { ...c, ...patch, updatedAt: Date.now() } : c)) });
   const reset = (id: string) => {
     const builtIn = BUILT_IN_CATEGORIES.find((c) => c.id === id);
-    if (builtIn) update(id, { name: builtIn.name, description: builtIn.description });
+    if (builtIn && window.confirm("Reset this category to its built-in name and description?")) update(id, { name: builtIn.name, description: builtIn.description });
   };
   const add = () =>
     save({
@@ -72,24 +82,63 @@ function Categories({ settings, save }: { settings: Settings; save: (s: Settings
       <h2>Filtered categories</h2>
       <div className="stack">
         {settings.categories.map((c) => (
-          <div key={c.id} className="card stack">
-            <div className="row between">
-              <label className="switch">
-                <input type="checkbox" checked={c.enabled} onChange={(e) => update(c.id, { enabled: e.target.checked })} />
-                <input type="text" value={c.name} onChange={(e) => update(c.id, { name: e.target.value })} style={{ width: 260 }} aria-label="Category name" />
-              </label>
-              <div className="row">
-                {BUILT_IN_CATEGORY_IDS.has(c.id) ? <button onClick={() => reset(c.id)}>Reset</button> : <button onClick={() => remove(c.id)}>Delete</button>}
-              </div>
-            </div>
-            <textarea value={c.description} maxLength={MAX_DESCRIPTION_CHARS} onChange={(e) => update(c.id, { description: e.target.value })} aria-label="Category description" />
-            <span className="muted">{c.description.length}/{MAX_DESCRIPTION_CHARS}</span>
-          </div>
+          <CategoryCard key={c.id} category={c} onToggle={(enabled) => update(c.id, { enabled })} onSave={(patch) => update(c.id, patch)} onReset={() => reset(c.id)} onRemove={() => remove(c.id)} />
         ))}
         <button onClick={add} disabled={settings.categories.length >= MAX_CATEGORIES}>Add category</button>
       </div>
     </section>
   );
+}
+
+function CategoryCard({
+  category: c,
+  onToggle,
+  onSave,
+  onReset,
+  onRemove,
+}: {
+  category: Settings["categories"][number];
+  onToggle: (enabled: boolean) => void;
+  onSave: (patch: { name: string; description: string }) => void;
+  onReset: () => void;
+  onRemove: () => void;
+}) {
+  const [name, setName] = useDraft(c.name);
+  const [description, setDescription] = useDraft(c.description);
+  const dirty = name !== c.name || description !== c.description;
+  return (
+    <div className="card stack">
+      <div className="row between">
+        <label className="switch">
+          <input type="checkbox" checked={c.enabled} onChange={(e) => onToggle(e.target.checked)} />
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={{ width: 260 }} aria-label="Category name" />
+        </label>
+        <div className="row">
+          {BUILT_IN_CATEGORY_IDS.has(c.id) ? <button onClick={onReset}>Reset</button> : <button onClick={onRemove}>Delete</button>}
+        </div>
+      </div>
+      <textarea value={description} maxLength={MAX_DESCRIPTION_CHARS} onChange={(e) => setDescription(e.target.value)} aria-label="Category description" />
+      <DraftFooter length={description.length} dirty={dirty} onSave={() => onSave({ name, description })} onDiscard={() => { setName(c.name); setDescription(c.description); }} />
+    </div>
+  );
+}
+
+function DraftFooter({ length, dirty, onSave, onDiscard }: { length: number; dirty: boolean; onSave: () => void; onDiscard: () => void }) {
+  return (
+    <div className="row between">
+      <span className="muted">{length}/{MAX_DESCRIPTION_CHARS}{dirty ? " · unsaved changes" : ""}</span>
+      <div className="row">
+        {dirty && <button onClick={onDiscard}>Discard</button>}
+        <button className="primary" disabled={!dirty} onClick={onSave}>Save</button>
+      </div>
+    </div>
+  );
+}
+
+function useDraft(saved: string) {
+  const [draft, setDraft] = useState(saved);
+  useEffect(() => setDraft(saved), [saved]);
+  return [draft, setDraft] as const;
 }
 
 function Topics({ settings, save }: { settings: Settings; save: (s: Settings) => Promise<void> }) {
@@ -105,17 +154,26 @@ function Topics({ settings, save }: { settings: Settings; save: (s: Settings) =>
       </p>
       <div className="stack">
         {settings.allowedTopics.map((t) => (
-          <div key={t.id} className="card stack">
-            <textarea value={t.description} maxLength={MAX_DESCRIPTION_CHARS} placeholder="Describe the topic, for example: woodworking techniques and tool reviews" onChange={(e) => update(t.id, e.target.value)} />
-            <div className="row between">
-              <span className="muted">{t.description.length}/{MAX_DESCRIPTION_CHARS}</span>
-              <button onClick={() => remove(t.id)}>Delete</button>
-            </div>
-          </div>
+          <TopicCard key={t.id} topic={t} onSave={(description) => update(t.id, description)} onRemove={() => remove(t.id)} />
         ))}
         <button onClick={add} disabled={settings.allowedTopics.length >= MAX_ALLOWED_TOPICS}>Add topic</button>
       </div>
     </section>
+  );
+}
+
+function TopicCard({ topic: t, onSave, onRemove }: { topic: Settings["allowedTopics"][number]; onSave: (description: string) => void; onRemove: () => void }) {
+  const [description, setDescription] = useDraft(t.description);
+  const dirty = description !== t.description;
+  return (
+    <div className="card stack">
+      <div className="row between">
+        <span className="muted">Allowed topic</span>
+        <button onClick={onRemove}>Delete</button>
+      </div>
+      <textarea value={description} maxLength={MAX_DESCRIPTION_CHARS} placeholder="Describe the topic, for example: woodworking techniques and tool reviews" onChange={(e) => setDescription(e.target.value)} />
+      <DraftFooter length={description.length} dirty={dirty} onSave={() => onSave(description)} onDiscard={() => setDescription(t.description)} />
+    </div>
   );
 }
 
@@ -162,15 +220,8 @@ function ImportExport({ settings, save }: { settings: Settings; save: (s: Settin
   const importJson = async (file: File | undefined) => {
     if (!file) return;
     try {
-      const parsed = JSON.parse(await file.text()) as Partial<Settings>;
-      if (!Array.isArray(parsed.categories)) throw new Error("File does not contain categories.");
-      await save({
-        paused: Boolean(parsed.paused),
-        hideShorts: Boolean(parsed.hideShorts),
-        categories: parsed.categories,
-        allowedTopics: parsed.allowedTopics ?? [],
-        allowedChannels: parsed.allowedChannels ?? [],
-      });
+      const parsed = parseSettings(JSON.parse(await file.text()));
+      await save(parsed);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not read the file.");
