@@ -1,5 +1,5 @@
 import { storage } from "wxt/utils/storage";
-import { defaultSettings, parseSettings, sanitizeSettings, type HostedAnalyzeRequest, type Settings, type ClassificationResult } from "@content-clam/shared";
+import { defaultSettings, sanitizeSettings, type HostedAnalyzeRequest, type Settings, type ClassificationResult } from "@content-clam/shared";
 
 export type FundingMode = "none" | "personal-key" | "hosted";
 
@@ -20,6 +20,8 @@ export interface PendingOperation {
 
 export interface SyncAccount {
   baseline: Settings;
+  error?: string;
+  failures?: number;
 }
 
 export const settingsItem = storage.defineItem<Settings>("local:settings", {
@@ -61,12 +63,6 @@ export const syncAccountsItem = storage.defineItem<Record<string, SyncAccount>>(
 
 export async function readSettings(): Promise<Settings> {
   return sanitizeSettings(await settingsItem.getValue()) ?? defaultSettings();
-}
-
-export async function writeSettings(input: unknown): Promise<Settings> {
-  const settings = parseSettings(input);
-  await settingsItem.setValue(settings);
-  return settings;
 }
 
 export const revealedItem = storage.defineItem<Record<string, number>>("session:revealed", {

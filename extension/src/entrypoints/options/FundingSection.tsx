@@ -21,6 +21,7 @@ function SyncChoice({ status, busy, run }: { status: Status; busy: boolean; run:
       ) : (
         <p className="muted">Settings changes on this device sync to your account. Use these to replace one side completely.</p>
       )}
+      {status.syncError && <p className="error">Last sync failed and will be retried: {status.syncError}</p>}
       <div className="row">
         <button
           className={unasked ? "primary" : undefined}
@@ -46,18 +47,15 @@ export function FundingSection({ status, refreshStatus, refreshSettings }: Props
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const setMode = async (mode: FundingMode) => {
-    await sendToBackground({ type: "setFundingMode", mode });
-    await refreshStatus();
-  };
+  const setMode = (mode: FundingMode) => run(null, () => sendToBackground({ type: "setFundingMode", mode }));
 
-  const saveKey = async () => {
-    await sendToBackground({ type: "setPersonalKey", key: key.trim() || null });
-    setKey("");
-    await refreshStatus();
-  };
+  const saveKey = () =>
+    run(null, async () => {
+      await sendToBackground({ type: "setPersonalKey", key: key.trim() || null });
+      setKey("");
+    });
 
-  const run = async (label: string, work: () => Promise<unknown>) => {
+  const run = async (label: string | null, work: () => Promise<unknown>) => {
     setBusy(true);
     setMessage(null);
     try {
@@ -140,12 +138,12 @@ export function FundingSection({ status, refreshStatus, refreshSettings }: Props
                     Sign in or create account
                   </button>
                 )}
-                {message && <p className="muted">{message}</p>}
               </div>
             )}
           </div>
         </label>
       </div>
+      {message && <p className="muted">{message}</p>}
     </section>
   );
 }

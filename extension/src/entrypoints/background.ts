@@ -1,14 +1,16 @@
 import { defineBackground } from "wxt/utils/define-background";
 import { analyzeVideos } from "../lib/analyzer";
 import type { BackgroundRequest, BackgroundResponse, Status } from "../lib/messages";
-import { cacheItem, fundingModeItem, lastErrorItem, personalKeyItem, readSettings, revealedItem, writeSettings } from "../lib/storage";
+import { cacheItem, fundingModeItem, lastErrorItem, personalKeyItem, readSettings, revealedItem } from "../lib/storage";
+import { changeSettings } from "../lib/settings";
 import { recordSubscriptions } from "../lib/subscriptions";
 import { hiddenCountsByCategory } from "../lib/hiddenCounts";
 import { env, hostedModeAvailable } from "../lib/env";
 import { ensureAccount, fetchAccount, sessionInfo } from "../lib/hosted";
-import { adoptRemoteSettings, pushIfSyncing, syncChoiceFor, uploadLocalSettings } from "../lib/sync";
+import { adoptRemoteSettings, startSettingsSync, syncSettings, syncStateFor, uploadLocalSettings } from "../lib/sync";
 
 export default defineBackground(() => {
+  startSettingsSync();
   chrome.runtime.onMessage.addListener((request: BackgroundRequest, _sender, sendResponse) => {
     handle(request)
       .then(sendResponse)
@@ -23,10 +25,10 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
       return { type: "analysis", outcomes: await analyzeVideos(request.videos) };
     case "getSettings":
       return { type: "settings", settings: await readSettings() };
-    case "updateSettings": {
-      const settings = await writeSettings(request.settings);
-      void pushIfSyncing(settings);
-      return { type: "ok" };
+    case "changeSettings": {
+      const settings = await changeSettings(request.change);
+      void syncSettings();
+      return { type: "settings", settings };
     }
     case "getStatus":
       return { type: "status", status: await status() };
@@ -76,11 +78,12 @@ async function status(): Promise<Status> {
   if (!hostedModeAvailable) return base;
   const session = await sessionInfo();
   if (!session.signedIn) return base;
-  const syncChoice = await syncChoiceFor(session.userId);
+  const sync = await syncStateFor(session.userId);
+  const signedIn = { ...base, signedIn: true, syncChoice: sync.choice, syncError: sync.error };
   try {
     const account = (await fetchAccount()) ?? (await ensureAccount().then(() => fetchAccount()));
-    return { ...base, signedIn: true, syncChoice, email: session.email ?? account?.email, balance: account?.balance };
+    return { ...signedIn, email: session.email ?? account?.email, balance: account?.balance };
   } catch (error) {
-    return { ...base, signedIn: true, syncChoice, email: session.email, lastError: error instanceof Error ? error.message : String(error) };
+    return { ...signedIn, email: session.email, lastError: error instanceof Error ? error.message : String(error) };
   }
 }

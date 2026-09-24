@@ -1,10 +1,10 @@
 import { ConvexHttpClient } from "convex/browser";
 import { createClerkClient } from "@clerk/chrome-extension/client";
 import type { HostedAnalyzeRequest, HostedAnalyzeResponse, Settings } from "@content-clam/shared";
-import { anyApi } from "convex/server";
+import type { FunctionReturnType } from "convex/server";
+import { api } from "@content-clam/backend/api";
 import { env, hostedModeAvailable } from "./env";
-
-const api = anyApi as any;
+import type { SettingsChanges, SyncedCollection } from "./settingsDiff";
 
 type ClerkClient = Awaited<ReturnType<typeof createClerkClient>>;
 let clerkPromise: Promise<ClerkClient> | null = null;
@@ -58,91 +58,54 @@ export async function hostedAnalyze(request: HostedAnalyzeRequest): Promise<Host
   return client.action(api.analyze.run, request);
 }
 
-export async function ensureAccount(): Promise<{ balance: number; trialGranted: boolean; created: boolean }> {
+export async function ensureAccount(): Promise<FunctionReturnType<typeof api.users.ensureUser>> {
   const client = await convex();
   return client.mutation(api.users.ensureUser, {});
 }
 
-export async function fetchAccount(): Promise<{ email: string; balance: number } | null> {
+export async function fetchAccount(): Promise<FunctionReturnType<typeof api.users.me>> {
   const client = await convex();
   return client.query(api.users.me, {});
 }
 
-export interface RemoteSettings {
-  paused: boolean;
-  categories: { itemId: string; name: string; description: string; enabled: boolean; updatedAt: number }[];
-  allowedTopics: { itemId: string; description: string; updatedAt: number }[];
-  allowedChannels: { itemId: string; channelKey: string; channelName: string; updatedAt: number }[];
-}
+export type RemoteSettings = FunctionReturnType<typeof api.settings.replaceAll>;
 
 export async function fetchRemoteSettings(): Promise<RemoteSettings | null> {
   const client = await convex();
   return client.query(api.settings.get, {});
 }
 
-export async function replaceRemoteSettings(settings: Settings): Promise<void> {
+export async function replaceRemoteSettings(settings: Settings): Promise<RemoteSettings> {
   const client = await convex();
-  await client.mutation(api.settings.replaceAll, toRemote(settings));
+  return client.mutation(api.settings.replaceAll, { paused: settings.paused, ...remoteItems(settings) });
 }
 
-export async function pushSettingsChanges(previous: Settings | null, next: Settings): Promise<void> {
+export async function sendSettingsChanges(changes: SettingsChanges): Promise<RemoteSettings> {
   const client = await convex();
-  const before = previous ? toRemote(previous) : null;
-  const after = toRemote(next);
-  const work: Promise<unknown>[] = [];
-  for (const [collection, upsert] of [
-    ["categories", api.settings.upsertCategory],
-    ["allowedTopics", api.settings.upsertTopic],
-    ["allowedChannels", api.settings.upsertChannel],
-  ] as const) {
-    const oldItems = new Map((before?.[collection] ?? []).map((item) => [item.itemId, item]));
-    for (const item of after[collection]) {
-      const old = oldItems.get(item.itemId);
-      oldItems.delete(item.itemId);
-      if (old && JSON.stringify(old) === JSON.stringify(item)) continue;
-      work.push(client.mutation(upsert, item));
-    }
-    for (const itemId of oldItems.keys()) work.push(client.mutation(api.settings.remove, { collection, itemId }));
-  }
-  if (!before || before.paused !== after.paused) work.push(client.mutation(api.settings.setPaused, { paused: after.paused, updatedAt: Date.now() }));
-  await Promise.all(work);
+  return client.mutation(api.settings.applyChanges, {
+    ...(changes.paused ? { paused: changes.paused } : {}),
+    ...remoteItems(changes),
+    deletions: changes.deletions.map(({ collection, id, deletedAt }) => ({ collection, itemId: id, deletedAt })),
+  });
 }
 
-export function toRemote(settings: Settings): RemoteSettings {
+function remoteItems(settings: Pick<Settings, SyncedCollection>) {
+  const withItemId = <T extends { id: string }>({ id, ...rest }: T) => ({ itemId: id, ...rest });
   return {
-    paused: settings.paused,
-    categories: settings.categories.map(({ id, ...rest }) => ({ itemId: id, ...rest })),
-    allowedTopics: settings.allowedTopics.map(({ id, ...rest }) => ({ itemId: id, ...rest })),
-    allowedChannels: settings.allowedChannels.map(({ id, ...rest }) => ({ itemId: id, ...rest })),
+    categories: settings.categories.map(withItemId),
+    allowedTopics: settings.allowedTopics.map(withItemId),
+    allowedChannels: settings.allowedChannels.map(withItemId),
   };
 }
 
-export function fromRemote(remote: RemoteSettings): Settings {
+export function fromRemote(remote: RemoteSettings, local: Pick<Settings, "hideShorts" | "keepSubscribed">): Settings {
+  const withId = <T extends { itemId: string }>({ itemId, ...rest }: T) => ({ id: itemId, ...rest });
   return {
     paused: remote.paused,
-    hideShorts: false,
-    keepSubscribed: true,
-    categories: remote.categories.map(({ itemId, ...rest }) => ({ id: itemId, ...rest })),
-    allowedTopics: remote.allowedTopics.map(({ itemId, ...rest }) => ({ id: itemId, ...rest })),
-    allowedChannels: remote.allowedChannels.map(({ itemId, ...rest }) => ({ id: itemId, ...rest })),
-  };
-}
-
-export function mergeByNewest(local: Settings, remote: Settings): Settings {
-  const pick = <T extends { id: string; updatedAt: number }>(a: T[], b: T[]) => {
-    const map = new Map<string, T>();
-    for (const item of [...a, ...b]) {
-      const current = map.get(item.id);
-      if (!current || item.updatedAt > current.updatedAt) map.set(item.id, item);
-    }
-    return [...map.values()];
-  };
-  return {
-    paused: local.paused,
     hideShorts: local.hideShorts,
     keepSubscribed: local.keepSubscribed,
-    categories: pick(local.categories, remote.categories),
-    allowedTopics: pick(local.allowedTopics, remote.allowedTopics),
-    allowedChannels: pick(local.allowedChannels, remote.allowedChannels),
+    categories: remote.categories.map(withId),
+    allowedTopics: remote.allowedTopics.map(withId),
+    allowedChannels: remote.allowedChannels.map(withId),
   };
 }

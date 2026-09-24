@@ -1,21 +1,11 @@
 import { useEffect, useState } from "react";
-import {
-  BUILT_IN_CATEGORIES,
-  BUILT_IN_CATEGORY_IDS,
-  MAX_ALLOWED_TOPICS,
-  MAX_CATEGORIES,
-  MAX_DESCRIPTION_CHARS,
-  normalizeChannelKey,
-  parseSettings,
-  type Settings,
-} from "@content-clam/shared";
-import { useSettings, useStatus } from "../../ui/useBackground";
-import { sendToBackground } from "../../lib/messages";
+import { BUILT_IN_CATEGORY_IDS, MAX_ALLOWED_TOPICS, MAX_CATEGORIES, MAX_DESCRIPTION_CHARS, normalizeChannelKey, type Settings } from "@content-clam/shared";
+import { type ChangeSettings, useSettings, useStatus } from "../../ui/useBackground";
 import { env } from "../../lib/env";
 import { FundingSection } from "./FundingSection";
 
 export function Options() {
-  const { settings, save, refresh } = useSettings();
+  const { settings, change, error, refresh } = useSettings();
   const statusHook = useStatus();
   if (!settings) return <main style={{ padding: 24 }}>Loading…</main>;
 
@@ -29,13 +19,14 @@ export function Options() {
         Videos stay visible unless they match a filter you enabled. Saving a changed description means matching videos need a fresh analysis, which can use
         credits. Edits are not applied until you press Save.
       </p>
+      {error && <p className="error">Could not save: {error}</p>}
 
       <FundingSection status={statusHook.status} refreshStatus={statusHook.refresh} refreshSettings={refresh} />
 
       <section>
         <h2>Shorts</h2>
         <label className="switch">
-          <input type="checkbox" checked={settings.hideShorts} onChange={(e) => save({ ...settings, hideShorts: e.target.checked })} />
+          <input type="checkbox" checked={settings.hideShorts} onChange={(e) => change({ type: "setFlag", flag: "hideShorts", value: e.target.checked })} />
           Hide Shorts everywhere
         </label>
         <p className="muted">
@@ -46,7 +37,11 @@ export function Options() {
       <section>
         <h2>Subscriptions</h2>
         <label className="switch">
-          <input type="checkbox" checked={settings.keepSubscribed} onChange={(e) => save({ ...settings, keepSubscribed: e.target.checked })} />
+          <input
+            type="checkbox"
+            checked={settings.keepSubscribed}
+            onChange={(e) => change({ type: "setFlag", flag: "keepSubscribed", value: e.target.checked })}
+          />
           Never hide videos from channels I subscribe to
         </label>
         <p className="muted">
@@ -55,10 +50,10 @@ export function Options() {
         </p>
       </section>
 
-      <Categories settings={settings} save={save} />
-      <Topics settings={settings} save={save} />
-      <Channels settings={settings} save={save} />
-      <ImportExport settings={settings} save={save} />
+      <Categories settings={settings} change={change} />
+      <Topics settings={settings} change={change} />
+      <Channels settings={settings} change={change} />
+      <ImportExport settings={settings} change={change} />
 
       <h2>Privacy</h2>
       <p className="muted">
@@ -72,20 +67,15 @@ export function Options() {
   );
 }
 
-function Categories({ settings, save }: { settings: Settings; save: (s: Settings) => Promise<void> }) {
-  const update = (id: string, patch: Partial<Settings["categories"][number]>) =>
-    save({ ...settings, categories: settings.categories.map((c) => (c.id === id ? { ...c, ...patch, updatedAt: Date.now() } : c)) });
+interface SectionProps {
+  settings: Settings;
+  change: ChangeSettings;
+}
+
+function Categories({ settings, change }: SectionProps) {
   const reset = (id: string) => {
-    const builtIn = BUILT_IN_CATEGORIES.find((c) => c.id === id);
-    if (builtIn && window.confirm("Reset this category to its built-in name and description?"))
-      update(id, { name: builtIn.name, description: builtIn.description });
+    if (window.confirm("Reset this category to its built-in name and description?")) void change({ type: "resetCategory", id });
   };
-  const add = () =>
-    save({
-      ...settings,
-      categories: [...settings.categories, { id: crypto.randomUUID(), name: "New category", description: "", enabled: true, updatedAt: Date.now() }],
-    });
-  const remove = (id: string) => save({ ...settings, categories: settings.categories.filter((c) => c.id !== id) });
 
   return (
     <section>
@@ -95,13 +85,13 @@ function Categories({ settings, save }: { settings: Settings; save: (s: Settings
           <CategoryCard
             key={c.id}
             category={c}
-            onToggle={(enabled) => update(c.id, { enabled })}
-            onSave={(patch) => update(c.id, patch)}
+            onToggle={(enabled) => change({ type: "editCategory", id: c.id, patch: { enabled } })}
+            onSave={(patch) => change({ type: "editCategory", id: c.id, patch })}
             onReset={() => reset(c.id)}
-            onRemove={() => remove(c.id)}
+            onRemove={() => change({ type: "removeCategory", id: c.id })}
           />
         ))}
-        <button onClick={add} disabled={settings.categories.length >= MAX_CATEGORIES}>
+        <button onClick={() => change({ type: "addCategory", name: "New category", description: "" })} disabled={settings.categories.length >= MAX_CATEGORIES}>
           Add category
         </button>
       </div>
@@ -171,11 +161,7 @@ function useDraft(saved: string) {
   return [draft, setDraft] as const;
 }
 
-function Topics({ settings, save }: { settings: Settings; save: (s: Settings) => Promise<void> }) {
-  const update = (id: string, description: string) =>
-    save({ ...settings, allowedTopics: settings.allowedTopics.map((t) => (t.id === id ? { ...t, description, updatedAt: Date.now() } : t)) });
-  const add = () => save({ ...settings, allowedTopics: [...settings.allowedTopics, { id: crypto.randomUUID(), description: "", updatedAt: Date.now() }] });
-  const remove = (id: string) => save({ ...settings, allowedTopics: settings.allowedTopics.filter((t) => t.id !== id) });
+function Topics({ settings, change }: SectionProps) {
   return (
     <section>
       <h2>Allowed topics</h2>
@@ -185,9 +171,14 @@ function Topics({ settings, save }: { settings: Settings; save: (s: Settings) =>
       </p>
       <div className="stack">
         {settings.allowedTopics.map((t) => (
-          <TopicCard key={t.id} topic={t} onSave={(description) => update(t.id, description)} onRemove={() => remove(t.id)} />
+          <TopicCard
+            key={t.id}
+            topic={t}
+            onSave={(description) => change({ type: "editTopic", id: t.id, description })}
+            onRemove={() => change({ type: "removeTopic", id: t.id })}
+          />
         ))}
-        <button onClick={add} disabled={settings.allowedTopics.length >= MAX_ALLOWED_TOPICS}>
+        <button onClick={() => change({ type: "addTopic", description: "" })} disabled={settings.allowedTopics.length >= MAX_ALLOWED_TOPICS}>
           Add topic
         </button>
       </div>
@@ -215,18 +206,13 @@ function TopicCard({ topic: t, onSave, onRemove }: { topic: Settings["allowedTop
   );
 }
 
-function Channels({ settings, save }: { settings: Settings; save: (s: Settings) => Promise<void> }) {
+function Channels({ settings, change }: SectionProps) {
   const [draft, setDraft] = useState("");
-  const add = () => {
+  const add = async () => {
     const channelKey = normalizeChannelKey(draft);
     if (!channelKey || settings.allowedChannels.some((c) => c.channelKey === channelKey)) return;
-    save({
-      ...settings,
-      allowedChannels: [...settings.allowedChannels, { id: crypto.randomUUID(), channelKey, channelName: draft.trim(), updatedAt: Date.now() }],
-    });
-    setDraft("");
+    if (await change({ type: "allowChannel", channel: draft })) setDraft("");
   };
-  const remove = (id: string) => save({ ...settings, allowedChannels: settings.allowedChannels.filter((c) => c.id !== id) });
   return (
     <section>
       <h2>Allowed channels</h2>
@@ -235,7 +221,7 @@ function Channels({ settings, save }: { settings: Settings; save: (s: Settings) 
         {settings.allowedChannels.map((c) => (
           <div key={c.id} className="row between card">
             <span>{c.channelName || c.channelKey}</span>
-            <button onClick={() => remove(c.id)}>Remove</button>
+            <button onClick={() => change({ type: "removeChannel", id: c.id })}>Remove</button>
           </div>
         ))}
         <div className="row">
@@ -244,16 +230,16 @@ function Channels({ settings, save }: { settings: Settings; save: (s: Settings) 
             value={draft}
             placeholder="@handle or channel name"
             onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && add()}
+            onKeyDown={(e) => e.key === "Enter" && void add()}
           />
-          <button onClick={add}>Add</button>
+          <button onClick={() => void add()}>Add</button>
         </div>
       </div>
     </section>
   );
 }
 
-function ImportExport({ settings, save }: { settings: Settings; save: (s: Settings) => Promise<void> }) {
+function ImportExport({ settings, change }: SectionProps) {
   const [error, setError] = useState<string | null>(null);
   const exportJson = () => {
     const blob = new Blob([JSON.stringify(settings, null, 2)], { type: "application/json" });
@@ -266,13 +252,15 @@ function ImportExport({ settings, save }: { settings: Settings; save: (s: Settin
   };
   const importJson = async (file: File | undefined) => {
     if (!file) return;
+    let parsed: unknown;
     try {
-      const parsed = parseSettings(JSON.parse(await file.text()));
-      await save(parsed);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not read the file.");
+      parsed = JSON.parse(await file.text());
+    } catch {
+      setError("Could not read the file.");
+      return;
     }
+    const imported = await change({ type: "replaceAll", settings: parsed });
+    setError(imported ? null : "The file was not imported. The reason is shown at the top of the page.");
   };
   return (
     <section>
@@ -289,5 +277,3 @@ function ImportExport({ settings, save }: { settings: Settings; save: (s: Settin
     </section>
   );
 }
-
-export { sendToBackground };

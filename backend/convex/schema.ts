@@ -22,6 +22,8 @@ export const channelFields = {
   updatedAt: v.number(),
 };
 
+export const settingsCollection = v.union(v.literal("categories"), v.literal("allowedTopics"), v.literal("allowedChannels"));
+
 export default defineSchema({
   users: defineTable({
     clerkId: v.string(),
@@ -45,6 +47,15 @@ export default defineSchema({
   allowedChannels: defineTable({ userId: v.id("users"), ...channelFields })
     .index("by_user", ["userId"])
     .index("by_user_item", ["userId", "itemId"]),
+
+  settingsDeletions: defineTable({
+    userId: v.id("users"),
+    collection: settingsCollection,
+    itemId: v.string(),
+    deletedAt: v.number(),
+  })
+    .index("by_user_item", ["userId", "collection", "itemId"])
+    .index("by_user_deletedAt", ["userId", "deletedAt"]),
 
   settingsMeta: defineTable({
     userId: v.id("users"),

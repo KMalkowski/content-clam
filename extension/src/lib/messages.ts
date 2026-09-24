@@ -1,4 +1,5 @@
 import type { Decision, Settings, VideoMetadata } from "@content-clam/shared";
+import type { SettingsChange } from "./settings";
 import type { FundingMode } from "./storage";
 
 export interface AnalysisOutcome {
@@ -11,7 +12,7 @@ export interface AnalysisOutcome {
 export type BackgroundRequest =
   | { type: "analyze"; videos: VideoMetadata[] }
   | { type: "getSettings" }
-  | { type: "updateSettings"; settings: Settings }
+  | { type: "changeSettings"; change: SettingsChange }
   | { type: "getStatus" }
   | { type: "getHiddenCounts" }
   | { type: "setFundingMode"; mode: FundingMode }
@@ -32,6 +33,7 @@ export interface Status {
   balance?: number;
   lastError?: string;
   syncChoice: "asked" | "unasked";
+  syncError?: string;
 }
 
 export type BackgroundResponse =
@@ -42,6 +44,8 @@ export type BackgroundResponse =
   | { type: "ok" }
   | { type: "error"; message: string };
 
-export function sendToBackground(request: BackgroundRequest): Promise<BackgroundResponse> {
-  return chrome.runtime.sendMessage(request);
+export async function sendToBackground(request: BackgroundRequest): Promise<BackgroundResponse> {
+  const response: BackgroundResponse = await chrome.runtime.sendMessage(request);
+  if (response.type === "error") throw new Error(response.message);
+  return response;
 }

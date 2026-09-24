@@ -1,26 +1,21 @@
 import { useState } from "react";
-import { MAX_CATEGORIES, type Settings } from "@content-clam/shared";
+import { MAX_CATEGORIES } from "@content-clam/shared";
 import { useHiddenCounts, useSettings, useStatus } from "../../ui/useBackground";
 import { sendToBackground, type Status } from "../../lib/messages";
 
 export function Popup() {
-  const { settings, save } = useSettings();
+  const { settings, change, error } = useSettings();
   const { status } = useStatus();
   const counts = useHiddenCounts();
   const [newCategory, setNewCategory] = useState("");
 
   if (!settings) return <div className="cc-pop" />;
 
-  const updateCategories = (categories: Settings["categories"]) => save({ ...settings, categories });
-  const toggleCategory = (id: string, enabled: boolean) =>
-    updateCategories(settings.categories.map((c) => (c.id === id ? { ...c, enabled, updatedAt: Date.now() } : c)));
-  const removeCategory = (id: string) => updateCategories(settings.categories.filter((c) => c.id !== id));
   const canAdd = newCategory.trim().length > 0 && settings.categories.length < MAX_CATEGORIES;
-  const addCategory = () => {
+  const addCategory = async () => {
     if (!canAdd) return;
     const name = newCategory.trim();
-    updateCategories([...settings.categories, { id: crypto.randomUUID(), name, description: name, enabled: true, updatedAt: Date.now() }]);
-    setNewCategory("");
+    if (await change({ type: "addCategory", name, description: name })) setNewCategory("");
   };
   const openOptions = () => chrome.runtime.openOptionsPage();
 
@@ -38,6 +33,7 @@ export function Popup() {
       <div className="rule" style={{ marginTop: 3 }} />
 
       <FundingNote status={status} />
+      {error && <p className="note error">Could not save: {error}</p>}
 
       <span className="eyebrow" style={{ marginTop: 24 }}>
         Feed rules
@@ -46,19 +42,23 @@ export function Popup() {
         <div className="item">
           <span className="name">Hide Shorts</span>
           <div className="dots" />
-          <Toggle on={settings.hideShorts} label="Toggle hide Shorts" onToggle={(on) => save({ ...settings, hideShorts: on })} />
+          <Toggle on={settings.hideShorts} label="Toggle hide Shorts" onToggle={(on) => change({ type: "setFlag", flag: "hideShorts", value: on })} />
           <span className="end-gap" />
         </div>
         <div className="item">
           <span className="name">Keep subscriptions</span>
           <div className="dots" />
-          <Toggle on={settings.keepSubscribed} label="Toggle keep subscribed channels" onToggle={(on) => save({ ...settings, keepSubscribed: on })} />
+          <Toggle
+            on={settings.keepSubscribed}
+            label="Toggle keep subscribed channels"
+            onToggle={(on) => change({ type: "setFlag", flag: "keepSubscribed", value: on })}
+          />
           <span className="end-gap" />
         </div>
         <div className="item">
           <span className="name">Block categories</span>
           <div className="dots" />
-          <Toggle on={!settings.paused} label="Toggle all category filters" onToggle={(on) => save({ ...settings, paused: !on })} />
+          <Toggle on={!settings.paused} label="Toggle all category filters" onToggle={(on) => change({ type: "setFlag", flag: "paused", value: !on })} />
           <span className="end-gap" />
         </div>
       </div>
@@ -78,8 +78,8 @@ export function Popup() {
             <span className="name">{c.name}</span>
             <div className="dots" style={{ marginInline: 10 }} />
             <span className="count">{counts[c.id] ?? 0}</span>
-            <Toggle on={c.enabled} label={`Toggle ${c.name}`} onToggle={(on) => toggleCategory(c.id, on)} />
-            <button type="button" className="remove" aria-label={`Remove ${c.name}`} onClick={() => removeCategory(c.id)}>
+            <Toggle on={c.enabled} label={`Toggle ${c.name}`} onToggle={(enabled) => change({ type: "editCategory", id: c.id, patch: { enabled } })} />
+            <button type="button" className="remove" aria-label={`Remove ${c.name}`} onClick={() => change({ type: "removeCategory", id: c.id })}>
               <svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M6 6l12 12M18 6L6 18" />
               </svg>
@@ -92,7 +92,7 @@ export function Popup() {
         className="add"
         onSubmit={(e) => {
           e.preventDefault();
-          addCategory();
+          void addCategory();
         }}
       >
         <label htmlFor="cc-add" className="sr-only">
