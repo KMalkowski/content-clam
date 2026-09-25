@@ -1,4 +1,5 @@
 import type { Decision, Settings, VideoMetadata } from "@content-clam/shared";
+import type { HiddenCounts } from "./hiddenCounts";
 import type { SettingsChange } from "./settings";
 import type { FundingMode } from "./storage";
 
@@ -18,6 +19,7 @@ export type BackgroundRequest =
   | { type: "setFundingMode"; mode: FundingMode }
   | { type: "setPersonalKey"; key: string | null }
   | { type: "revealVideo"; videoId: string }
+  | { type: "recordHiddenShorts"; videoIds: string[] }
   | { type: "recordSubscriptions"; channelKeys: string[] }
   | { type: "syncFromServer" }
   | { type: "pushSettingsToServer" }
@@ -40,7 +42,7 @@ export type BackgroundResponse =
   | { type: "analysis"; outcomes: AnalysisOutcome[] }
   | { type: "settings"; settings: Settings }
   | { type: "status"; status: Status }
-  | { type: "hiddenCounts"; counts: Record<string, number> }
+  | { type: "hiddenCounts"; counts: HiddenCounts }
   | { type: "ok" }
   | { type: "error"; message: string };
 

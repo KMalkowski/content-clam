@@ -4,7 +4,7 @@ import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import { LOOKAHEAD_PX, normalizeChannelKey, type VideoMetadata } from "@content-clam/shared";
 import { CARD_SELECTOR, extractCard, extractShortsPlayer, isNestedCard } from "./extract";
 import { applyOutcome, clearDim, DIM_CLASS } from "./dimming";
-import { hideShortsOnPage } from "./shorts";
+import { hiddenShortsIds, hideShortsOnPage } from "./shorts";
 import { ShortsController } from "./shortsPlayer";
 import { AnalysisQueue } from "./analysisQueue";
 import { subscribedChannelsFromFeed, subscribedChannelsOnPage } from "./subscriptions";
@@ -26,6 +26,7 @@ class PageController {
   private keepSubscribed = true;
   private recordingSubscriptions = false;
   private seenSubscriptionKeys = new Set<string>();
+  private reportedShorts = new Set<string>();
   private subscriptionsFromFeed: Promise<void> | null = null;
   private preferencesReady = false;
   private generation = 0;
@@ -82,8 +83,17 @@ class PageController {
     if (this.keepSubscribed) await this.loadSubscriptionsFromFeed();
     if (generation !== this.generation) return;
     this.preferencesReady = true;
-    hideShortsOnPage(this.hideShorts);
+    this.applyShortsRule();
     this.scheduleScan();
+  }
+
+  private applyShortsRule() {
+    hideShortsOnPage(this.hideShorts);
+    if (!this.hideShorts) return;
+    const fresh = [...new Set(hiddenShortsIds())].filter((id) => !this.reportedShorts.has(id));
+    if (!fresh.length) return;
+    for (const id of fresh) this.reportedShorts.add(id);
+    void sendToBackground({ type: "recordHiddenShorts", videoIds: fresh }).catch(() => undefined);
   }
 
   private loadSubscriptionsFromFeed(): Promise<void> {
@@ -107,7 +117,7 @@ class PageController {
 
   private scan() {
     if (!this.preferencesReady) return;
-    hideShortsOnPage(this.hideShorts);
+    this.applyShortsRule();
     const limit = window.innerHeight + LOOKAHEAD_PX;
     const wanted: { meta: VideoMetadata; distance: number }[] = [];
     const cardsOnPage: VideoMetadata[] = [];

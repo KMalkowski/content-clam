@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Settings } from "@content-clam/shared";
+import type { HiddenCounts } from "../lib/hiddenCounts";
 import { sendToBackground, type Status } from "../lib/messages";
 import type { SettingsChange } from "../lib/settings";
 import { settingsItem, syncAccountsItem } from "../lib/storage";
 
-export type ChangeSettings = (change: SettingsChange) => Promise<boolean>;
+export type ChangeSettings = (change: SettingsChange) => Promise<Settings | null>;
 
 export function useSettings() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -24,12 +25,13 @@ export function useSettings() {
   const change = useCallback<ChangeSettings>(async (next) => {
     try {
       const response = await sendToBackground({ type: "changeSettings", change: next });
-      if (response.type === "settings") setSettings(response.settings);
+      const settings = response.type === "settings" ? response.settings : null;
+      if (settings) setSettings(settings);
       setError(null);
-      return true;
+      return settings;
     } catch (e) {
       setError(messageOf(e));
-      return false;
+      return null;
     }
   }, []);
   return { settings, change, error, refresh };
@@ -49,7 +51,7 @@ export function useStatus() {
 }
 
 export function useHiddenCounts() {
-  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [counts, setCounts] = useState<HiddenCounts | null>(null);
   useEffect(() => {
     void sendToBackground({ type: "getHiddenCounts" })
       .then((response) => {

@@ -27,6 +27,16 @@ describe("settings changes", () => {
     expect(edited.categories.filter((c) => c.updatedAt === 50)).toHaveLength(1);
   });
 
+  it("puts a removed category back in its old place", () => {
+    const base = defaultSettings(1);
+    const removed = base.categories[1]!;
+    const without = applySettingsChange(base, { type: "removeCategory", id: removed.id }, 20);
+    const restored = applySettingsChange(without, { type: "restoreCategory", category: removed, index: 1 }, 30);
+    expect(restored.categories.map((c) => c.id)).toEqual(base.categories.map((c) => c.id));
+    expect(restored.categories[1]).toMatchObject({ ...removed, updatedAt: 30 });
+    expect(applySettingsChange(restored, { type: "restoreCategory", category: removed, index: 0 }, 40)).toBe(restored);
+  });
+
   it("does not add the same channel twice", () => {
     const once = applySettingsChange(defaultSettings(), { type: "allowChannel", channel: "@Chan" });
     const twice = applySettingsChange(once, { type: "allowChannel", channel: "chan" });

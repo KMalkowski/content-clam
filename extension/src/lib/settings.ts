@@ -9,6 +9,7 @@ export type SettingsChange =
   | { type: "editCategory"; id: string; patch: Partial<Pick<Category, "name" | "description" | "enabled">> }
   | { type: "resetCategory"; id: string }
   | { type: "removeCategory"; id: string }
+  | { type: "restoreCategory"; category: Category; index: number }
   | { type: "addTopic"; description: string }
   | { type: "editTopic"; id: string; description: string }
   | { type: "removeTopic"; id: string }
@@ -51,6 +52,12 @@ export function applySettingsChange(settings: Settings, change: SettingsChange, 
     }
     case "removeCategory":
       return { ...settings, categories: settings.categories.filter((c) => c.id !== change.id) };
+    case "restoreCategory": {
+      if (settings.categories.some((c) => c.id === change.category.id)) return settings;
+      const categories = [...settings.categories];
+      categories.splice(Math.min(change.index, categories.length), 0, { ...change.category, updatedAt: now });
+      return { ...settings, categories };
+    }
     case "addTopic":
       return { ...settings, allowedTopics: [...settings.allowedTopics, { id: newId(), description: change.description, updatedAt: now }] };
     case "editTopic":

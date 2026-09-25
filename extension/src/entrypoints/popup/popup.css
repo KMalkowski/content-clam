@@ -2,6 +2,14 @@
   font-family: "Instrument Serif";
   src: url("/fonts/InstrumentSerif-Regular.woff2") format("woff2");
   font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("/fonts/InstrumentSerif-Italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
 }
 
 @font-face {
@@ -27,22 +35,73 @@
 }
 
 .cc-pop {
-  --accent: #e8735a;
+  --accent: #eb7a67;
+  --accent-text: #c4533f;
   --ink: #16161a;
   --paper: #fbfaf6;
-  --label: #8a8780;
-  --label-soft: #a8a296;
+  --label: #6f6b63;
+  --body: #5e5a53;
+  --soft-ink: #3e3b36;
+  --placeholder: #857f73;
+  --disabled: #a8a296;
   --dots: #c9c5bb;
+  --track-off: #d5d1c7;
+  --track-paused: #e4e0d6;
   --rule-soft: #e0dcd2;
+  --error: #a5402c;
   --serif: "Instrument Serif", Georgia, serif;
   width: 380px;
-  min-height: 600px;
+  height: 590px;
   background: var(--paper);
   font-family: "Libre Franklin", system-ui, sans-serif;
+  line-height: normal;
   color: var(--ink);
-  padding: 26px 28px 22px;
+  padding: 24px 28px 18px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.cc-pop button {
+  font-family: inherit;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.cc-pop button:disabled {
+  opacity: 1;
+}
+
+.cc-pop button:focus-visible {
+  outline: 1.5px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.cc-pop input,
+.cc-pop textarea {
+  border: 0;
+  border-bottom: 1px solid var(--ink);
+  border-radius: 0;
+  background: transparent;
+  font-family: inherit;
+  color: var(--ink);
+  padding: 0;
+  min-height: 0;
+}
+
+.cc-pop input::placeholder,
+.cc-pop textarea::placeholder {
+  color: var(--placeholder);
+}
+
+.cc-pop input:focus,
+.cc-pop textarea:focus {
+  outline: none;
+  border-bottom: 2px solid var(--ink);
 }
 
 .cc-pop .header {
@@ -56,8 +115,6 @@
   font-size: 37px;
   line-height: 0.92;
   letter-spacing: -0.01em;
-  font-weight: 400;
-  margin: 0;
 }
 
 .cc-pop .header img {
@@ -70,10 +127,16 @@
 .cc-pop .rule {
   height: 1px;
   background: var(--ink);
+  flex-shrink: 0;
 }
 
 .cc-pop .rule.thick {
   height: 2px;
+  margin-top: 14px;
+}
+
+.cc-pop .rule.double {
+  margin-top: 3px;
 }
 
 .cc-pop .rule.soft {
@@ -81,99 +144,148 @@
 }
 
 .cc-pop .eyebrow {
-  font-size: 9px;
+  font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--label);
 }
 
-.cc-pop .eyebrow.soft {
-  font-size: 8.5px;
-  letter-spacing: 0.14em;
-  color: var(--label-soft);
-}
-
-.cc-pop .note {
-  font-size: 11.5px;
-  color: var(--label);
-  margin: 10px 0 0;
-}
-
-.cc-pop .note button {
-  font: inherit;
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--accent);
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.cc-pop .note.error {
-  color: #c0392b;
-}
-
-.cc-pop .rows {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.cc-pop .list {
-  transition: opacity 150ms;
-}
-
-.cc-pop .list.off {
-  opacity: 0.4;
-}
-
-.cc-pop .item {
+.cc-pop .summary {
+  height: 26px;
+  margin-top: 12px;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
+  min-width: 0;
 }
 
-.cc-pop .item .name {
-  font-size: 13.5px;
-  font-weight: 500;
+.cc-pop .summary p {
+  margin: 0;
+  font-family: var(--serif);
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.cc-pop .dots {
-  flex-grow: 1;
-  border-bottom: 1px dotted var(--dots);
-  margin: 0 12px 4px;
+.cc-pop .kept {
+  font-size: 19px;
 }
 
-.cc-pop .item .count {
+.cc-pop .kept .total {
+  font-style: italic;
+  color: var(--accent-text);
+}
+
+.cc-pop .note {
+  font-size: 17px;
+  font-style: italic;
+  color: var(--body);
+}
+
+.cc-pop .note-link {
+  font-size: inherit;
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cc-pop .grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px 44px 28px;
+}
+
+.cc-pop .rules-head {
+  align-items: end;
+  margin-top: 20px;
+}
+
+.cc-pop .rules-head .eyebrow {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.cc-pop .rules-head .hidden-label {
+  grid-column: 1 / 3;
+  justify-self: end;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.cc-pop .rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cc-pop .rules {
+  margin-top: 6px;
+}
+
+.cc-pop .item {
+  align-items: center;
+  height: 28px;
+}
+
+.cc-pop .lead {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.cc-pop .name,
+.cc-pop .category-name .label {
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.cc-pop .dots {
+  flex: 1 0 14px;
+  height: 0;
+  border-bottom: 1px dotted var(--dots);
+  margin: 9px 8px 0 10px;
+}
+
+.cc-pop .count {
   font-family: var(--serif);
   font-size: 16px;
   line-height: 1;
-  width: 34px;
   text-align: right;
-  flex-shrink: 0;
-  margin-right: 14px;
 }
 
 .cc-pop .toggle {
+  width: 44px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cc-pop .toggle:disabled {
+  cursor: not-allowed;
+}
+
+.cc-pop .toggle .track {
   position: relative;
   width: 32px;
   height: 18px;
   border-radius: 999px;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  background: var(--dots);
-  flex-shrink: 0;
+  background: var(--track-off);
 }
 
-.cc-pop .toggle[aria-pressed="true"] {
+.cc-pop .toggle[aria-checked="true"] .track {
   background: var(--accent);
 }
 
-.cc-pop .toggle::after {
+.cc-pop .toggle:disabled .track {
+  background: var(--track-paused);
+}
+
+.cc-pop .toggle .track::after {
   content: "";
   position: absolute;
   top: 2px;
@@ -185,109 +297,313 @@
   transition: left 120ms;
 }
 
-.cc-pop .toggle[aria-pressed="true"]::after {
+.cc-pop .toggle[aria-checked="true"] .track::after {
   left: 16px;
 }
 
-.cc-pop .end-gap {
-  width: 21px;
+.cc-pop .section-rule {
+  margin-top: 16px;
+}
+
+.cc-pop .section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+.cc-pop .paused {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--label);
+  padding-right: 72px;
+}
+
+.cc-pop .list {
+  height: 96px;
+  margin-top: 6px;
+  overflow-y: auto;
   flex-shrink: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--track-off) transparent;
+}
+
+.cc-pop .list.empty {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.cc-pop .empty-title {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+}
+
+.cc-pop .empty-hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--body);
+}
+
+.cc-pop .category-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+}
+
+.cc-pop .category-name .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.cc-pop .category-name:hover .label {
+  text-decoration: underline dotted var(--placeholder);
+  text-underline-offset: 3px;
+}
+
+.cc-pop .list.off .category-name,
+.cc-pop .list.off .count {
+  color: var(--label);
+}
+
+.cc-pop .pen {
+  flex-shrink: 0;
+  color: var(--label);
 }
 
 .cc-pop .remove {
-  border: 0;
-  background: transparent;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  margin: -3px -7px -3px 4px;
-  cursor: pointer;
-  color: var(--label-soft);
+  width: 28px;
+  height: 28px;
+  color: var(--label);
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  border-radius: 6px;
 }
 
-.cc-pop .remove:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+.cc-pop .category .pen,
+.cc-pop .category .remove {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.cc-pop .category:hover .pen,
+.cc-pop .category-name:focus-visible .pen,
+.cc-pop .category:hover .remove,
+.cc-pop .category:focus-within .remove {
+  opacity: 1;
 }
 
 .cc-pop .remove:hover {
   color: var(--ink);
 }
 
+.cc-pop .action {
+  height: 32px;
+  padding: 0 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--label);
+  flex-shrink: 0;
+}
+
+.cc-pop .action.accent {
+  color: var(--accent-text);
+}
+
+.cc-pop .action:disabled {
+  color: var(--disabled);
+  cursor: default;
+}
+
 .cc-pop .add {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 24px;
+  gap: 8px;
+  margin-top: 16px;
 }
 
 .cc-pop .add input {
   flex-grow: 1;
   min-width: 0;
-  padding: 4px 0 7px;
-  border: 0;
-  border-bottom: 1px solid var(--ink);
-  border-radius: 0;
-  background: transparent;
+  height: 32px;
   font-size: 13.5px;
-  font-family: inherit;
+}
+
+.cc-pop .hint-line {
+  height: 30px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.cc-pop .hint-line .error {
+  color: var(--error);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cc-pop .try {
+  color: var(--label);
+  margin-right: 4px;
+}
+
+.cc-pop .suggestion {
+  height: 28px;
+  padding: 0 6px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--soft-ink);
+}
+
+.cc-pop .suggestion:hover {
   color: var(--ink);
-  outline: none;
 }
 
-.cc-pop .add input::placeholder {
-  color: var(--label-soft);
-}
-
-.cc-pop .add button {
-  border: 0;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--accent);
+.cc-pop .editor {
+  height: 178px;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
   flex-shrink: 0;
 }
 
-.cc-pop .add button:disabled {
-  color: var(--label-soft);
-  cursor: default;
+.cc-pop .editor-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
 }
 
-.cc-pop .spacer {
-  flex-grow: 1;
+.cc-pop .editor-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 32px;
+  padding-bottom: 2px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 22px;
+  line-height: 1.15;
 }
 
-.cc-pop .footer {
+.cc-pop .editor-title:not(:focus) {
+  border-bottom: 1px dotted var(--disabled);
+}
+
+.cc-pop .editor-title:hover:not(:focus) {
+  border-bottom-color: var(--ink);
+}
+
+.cc-pop .editor-count {
+  font-size: 12px;
+  color: var(--label);
+  flex-shrink: 0;
+  padding-bottom: 6px;
+}
+
+.cc-pop .editor-count .number {
+  font-family: var(--serif);
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.cc-pop .editor-label {
+  margin-top: 12px;
+}
+
+.cc-pop .editor textarea {
+  margin-top: 6px;
+  height: 60px;
+  padding-bottom: 6px;
+  resize: none;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.cc-pop .editor-foot {
+  margin-top: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  padding: 14px 0 0;
-  border: 0;
-  background: none;
-  border-radius: 0;
-  color: var(--ink);
-  font-family: inherit;
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  cursor: pointer;
+  gap: 8px;
 }
 
-.cc-pop .footer .arrow {
+.cc-pop .helper {
+  font-size: 11.5px;
+  color: var(--label);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.cc-pop .helper.error {
+  color: var(--error);
+}
+
+.cc-pop .editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cc-pop .footer-rule {
+  margin-top: 12px;
+}
+
+.cc-pop .footer {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.cc-pop .undo {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--soft-ink);
+}
+
+.cc-pop .undo-name {
   font-family: var(--serif);
+  font-style: italic;
   font-size: 15px;
+}
+
+.cc-pop .settings-link {
+  width: 100%;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.cc-pop .settings-link .arrow {
+  font-family: var(--serif);
+  font-size: 16px;
   letter-spacing: 0;
 }
 

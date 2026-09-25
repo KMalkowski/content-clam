@@ -1,10 +1,10 @@
 import { defineBackground } from "wxt/utils/define-background";
 import { analyzeVideos } from "../lib/analyzer";
 import type { BackgroundRequest, BackgroundResponse, Status } from "../lib/messages";
-import { cacheItem, fundingModeItem, lastErrorItem, personalKeyItem, readSettings, revealedItem } from "../lib/storage";
+import { fundingModeItem, lastErrorItem, personalKeyItem, readSettings, revealedItem } from "../lib/storage";
 import { changeSettings } from "../lib/settings";
 import { recordSubscriptions } from "../lib/subscriptions";
-import { hiddenCountsByCategory } from "../lib/hiddenCounts";
+import { hiddenCounts, recordHiddenShorts } from "../lib/hiddenCounts";
 import { env, hostedModeAvailable } from "../lib/env";
 import { ensureAccount, fetchAccount, sessionInfo } from "../lib/hosted";
 import { adoptRemoteSettings, startSettingsSync, syncSettings, syncStateFor, uploadLocalSettings } from "../lib/sync";
@@ -32,10 +32,8 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
     }
     case "getStatus":
       return { type: "status", status: await status() };
-    case "getHiddenCounts": {
-      const [cache, settings] = await Promise.all([cacheItem.getValue(), readSettings()]);
-      return { type: "hiddenCounts", counts: hiddenCountsByCategory(cache, settings) };
-    }
+    case "getHiddenCounts":
+      return { type: "hiddenCounts", counts: await hiddenCounts() };
     case "setFundingMode":
       await fundingModeItem.setValue(request.mode);
       return { type: "ok" };
@@ -48,6 +46,9 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
       await revealedItem.setValue(revealed);
       return { type: "ok" };
     }
+    case "recordHiddenShorts":
+      await recordHiddenShorts(request.videoIds);
+      return { type: "ok" };
     case "recordSubscriptions":
       await recordSubscriptions(request.channelKeys);
       return { type: "ok" };

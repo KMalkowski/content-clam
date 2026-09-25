@@ -59,6 +59,10 @@ export const subscribedChannelsItem = storage.defineItem<Record<string, number>>
   fallback: {},
 });
 
+export const hiddenShortsItem = storage.defineItem<Record<string, number>>("local:hiddenShorts", {
+  fallback: {},
+});
+
 export const syncAccountsItem = storage.defineItem<Record<string, SyncAccount>>("local:syncAccounts", {
   fallback: {},
 });

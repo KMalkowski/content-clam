@@ -1,3 +1,5 @@
+import { parseVideoId } from "./extract";
+
 export const SHORTS_SHELF_SELECTOR = [
   "ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts])",
   "ytd-rich-section-renderer:has(ytm-shorts-lockup-view-model)",
@@ -33,4 +35,9 @@ export function hideShortsOnPage(enabled: boolean) {
     const onScreen = rect.bottom > 0 && rect.top < window.innerHeight;
     el.classList.add(onScreen && rect.height > 0 ? BLURRED_CLASS : REMOVED_CLASS);
   }
+}
+
+export function hiddenShortsIds(): string[] {
+  const links = document.querySelectorAll<HTMLAnchorElement>(`.${REMOVED_CLASS} a[href*="/shorts/"], .${BLURRED_CLASS} a[href*="/shorts/"]`);
+  return [...links].map((a) => parseVideoId(a.getAttribute("href") ?? "")).filter((id): id is string => id !== null);
 }

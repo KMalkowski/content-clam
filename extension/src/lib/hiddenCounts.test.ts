@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultSettings } from "@content-clam/shared";
-import { hiddenCountsByCategory, WEEK_MS } from "./hiddenCounts";
+import { countRecent, hiddenCountsByCategory, WEEK_MS, withHiddenShorts } from "./hiddenCounts";
 import type { CachedClassification } from "./storage";
 
 const settings = defaultSettings(0);
@@ -25,6 +25,15 @@ describe("hiddenCountsByCategory", () => {
       settings,
       now,
     );
-    expect(counts).toEqual({ [a]: 2, [b]: 1 });
+    expect(counts).toEqual({ byCategory: { [a]: 2, [b]: 1 }, videos: 2 });
+  });
+});
+
+describe("hidden Shorts", () => {
+  it("counts each Short once and forgets ones older than a week", () => {
+    const now = WEEK_MS * 2;
+    const seen = withHiddenShorts({ old: now - WEEK_MS - 1, kept: now - 1000 }, ["kept", "new", "new"], now);
+    expect(seen).toEqual({ kept: now - 1000, new: now });
+    expect(countRecent(seen, now + WEEK_MS - 500)).toBe(1);
   });
 });

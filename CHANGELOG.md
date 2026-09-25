@@ -15,3 +15,4 @@ First public version, not yet in the Chrome Web Store.
 - Pay with your own TypeSafe API key, or buy credits from the hosted service.
 - Sync settings across devices when signed in. Classification results stay on the device.
 - Settings export and import as JSON.
+- A popup that shows how many videos and Shorts were hidden this week. You can edit a category's name and description there, and undo a removal.
