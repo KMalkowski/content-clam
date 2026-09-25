@@ -44,11 +44,13 @@ export async function sessionInfo(): Promise<SessionInfo> {
   }
 }
 
+export const ACCOUNT_CHANGED = "The signed-in account changed. Try again.";
+
 async function convex(expectedUserId?: string): Promise<ConvexHttpClient> {
   if (!env.convexUrl) throw new Error("Hosted mode is not configured in this build.");
   const token = await getToken();
   if (!token) throw new Error("Sign in to use credits.");
-  if (expectedUserId && tokenSubject(token) !== expectedUserId) throw new Error("The signed-in account changed. Try again.");
+  if (expectedUserId && tokenSubject(token) !== expectedUserId) throw new Error(ACCOUNT_CHANGED);
   const client = new ConvexHttpClient(env.convexUrl);
   client.setAuth(token);
   return client;
@@ -59,8 +61,8 @@ export async function hostedAnalyze(request: HostedAnalyzeRequest): Promise<Host
   return client.action(api.analyze.run, request);
 }
 
-export async function ensureAccount(): Promise<FunctionReturnType<typeof api.users.ensureUser>> {
-  const client = await convex();
+export async function ensureAccount(expectedUserId?: string): Promise<FunctionReturnType<typeof api.users.ensureUser>> {
+  const client = await convex(expectedUserId);
   return client.mutation(api.users.ensureUser, {});
 }
 
@@ -71,13 +73,13 @@ export async function fetchAccount(): Promise<FunctionReturnType<typeof api.user
 
 export type RemoteSettings = FunctionReturnType<typeof api.settings.replaceAll>;
 
-export async function fetchRemoteSettings(): Promise<RemoteSettings | null> {
-  const client = await convex();
+export async function fetchRemoteSettings(userId: string): Promise<RemoteSettings | null> {
+  const client = await convex(userId);
   return client.query(api.settings.get, {});
 }
 
-export async function replaceRemoteSettings(settings: Settings): Promise<RemoteSettings> {
-  const client = await convex();
+export async function replaceRemoteSettings(settings: Settings, userId: string): Promise<RemoteSettings> {
+  const client = await convex(userId);
   return client.mutation(api.settings.replaceAll, { paused: settings.paused, ...remoteItems(settings) });
 }
 

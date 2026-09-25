@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { defaultSettings, type Settings } from "@content-clam/shared";
 import { adoptRemoteSettings, RETRY_ALARM, syncSettings, syncStateFor, uploadLocalSettings } from "./sync";
-import { readSettings, settingsItem } from "./storage";
+import { readSettings, settingsItem, syncAccountsItem } from "./storage";
 import { updateSettings } from "./settings";
 import type { RemoteSettings } from "./hosted";
 import type { SettingsChanges } from "./settingsDiff";
@@ -10,14 +10,27 @@ import type { SettingsChanges } from "./settingsDiff";
 const hosted = vi.hoisted(() => ({
   sessionInfo: vi.fn<() => Promise<{ signedIn: boolean; userId?: string; email?: string }>>(),
   ensureAccount: vi.fn(async () => ({ balance: 0, trialGranted: true, created: false })),
-  fetchRemoteSettings: vi.fn<() => Promise<RemoteSettings | null>>(),
-  replaceRemoteSettings: vi.fn<(settings: Settings) => Promise<RemoteSettings>>(),
+  fetchRemoteSettings: vi.fn<(userId: string) => Promise<RemoteSettings | null>>(),
+  replaceRemoteSettings: vi.fn<(settings: Settings, userId: string) => Promise<RemoteSettings>>(),
   sendSettingsChanges: vi.fn<(changes: SettingsChanges, userId: string) => Promise<RemoteSettings>>(),
 }));
 vi.mock("./hosted", async (importOriginal) => ({ ...(await importOriginal<typeof import("./hosted")>()), ...hosted }));
 vi.mock("./env", () => ({ env: {}, hostedModeAvailable: true }));
 
-const signedInAs = (userId: string) => hosted.sessionInfo.mockResolvedValue({ signedIn: true, userId, email: `${userId}@x.y` });
+let currentUser: string | undefined;
+const signedInAs = (userId: string) => {
+  currentUser = userId;
+  hosted.sessionInfo.mockResolvedValue({ signedIn: true, userId, email: `${userId}@x.y` });
+};
+const asAccount = (userId: string) => {
+  if (userId !== currentUser) throw new Error("The signed-in account changed. Try again.");
+};
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => (resolve = done));
+  return { promise, resolve };
+}
 
 function remote(settings: Settings): RemoteSettings {
   const withItemId = <T extends { id: string }>({ id, ...rest }: T) => ({ itemId: id, ...rest });
@@ -39,8 +52,15 @@ beforeEach(() => {
   fakeBrowser.reset();
   for (const fn of Object.values(hosted)) fn.mockReset();
   hosted.ensureAccount.mockResolvedValue({ balance: 0, trialGranted: true, created: false });
-  hosted.fetchRemoteSettings.mockResolvedValue(null);
-  hosted.replaceRemoteSettings.mockImplementation(async (settings) => remote(settings));
+  currentUser = undefined;
+  hosted.fetchRemoteSettings.mockImplementation(async (userId) => {
+    asAccount(userId);
+    return null;
+  });
+  hosted.replaceRemoteSettings.mockImplementation(async (settings, userId) => {
+    asAccount(userId);
+    return remote(settings);
+  });
   hosted.sendSettingsChanges.mockImplementation(async () => remote(await readSettings()));
 });
 
@@ -128,6 +148,43 @@ describe("account-scoped sync", () => {
     expect(forA.allowedTopics.map((t) => t.id)).toEqual(["t1"]);
   });
 
+  it("does not apply remote settings that arrive after switching accounts", async () => {
+    signedInAs("user_a");
+    await settingsItem.setValue(defaultSettings());
+    hosted.fetchRemoteSettings.mockImplementationOnce(async () => {
+      signedInAs("user_b");
+      return remote(withTopic(defaultSettings(), "a_private"));
+    });
+    await expect(adoptRemoteSettings()).rejects.toThrow(/account changed/i);
+    expect(topicIds(await readSettings())).toEqual([]);
+    expect((await syncStateFor("user_a")).choice).toBe("unasked");
+  });
+
+  it("keeps manual transfers with the account they started for when it changes while queued", async () => {
+    signedInAs("user_a");
+    await settingsItem.setValue(defaultSettings());
+    await uploadLocalSettings();
+    await settingsItem.setValue(withTopic(defaultSettings(), "t1"));
+    const release = deferred();
+    hosted.sendSettingsChanges.mockImplementationOnce(async () => {
+      await release.promise;
+      return remote(await readSettings());
+    });
+    const busy = syncSettings();
+    const upload = uploadLocalSettings();
+    const adopt = adoptRemoteSettings();
+    await vi.waitFor(() => expect(hosted.sendSettingsChanges).toHaveBeenCalled());
+    signedInAs("user_b");
+    release.resolve();
+    await busy;
+
+    await expect(upload).rejects.toThrow(/account changed/i);
+    await expect(adopt).rejects.toThrow(/account changed/i);
+    expect(hosted.replaceRemoteSettings.mock.calls.map(([, userId]) => userId)).toEqual(["user_a", "user_a"]);
+    expect(hosted.fetchRemoteSettings.mock.calls.map(([userId]) => userId)).toEqual(["user_a"]);
+    expect((await syncStateFor("user_b")).choice).toBe("unasked");
+  });
+
   it("refuses to sync without an identified account", async () => {
     hosted.sessionInfo.mockResolvedValue({ signedIn: true });
     await expect(uploadLocalSettings()).rejects.toThrow(/sign in/i);
@@ -200,6 +257,44 @@ describe("sync results", () => {
       const [retried] = hosted.sendSettingsChanges.mock.calls.at(-1)!;
       expect(retried.paused).toEqual({ value: true, updatedAt: 100 });
       expect(retried.deletions).toEqual([{ collection: "allowedTopics", id: "t1", deletedAt: 100 }]);
+    });
+
+    it("saves pending changes before sending them and retries them after a restart", async () => {
+      await updateSettings((current) => withTopic(current, "t1"));
+      await syncSettings();
+
+      vi.setSystemTime(100);
+      await updateSettings((current) => ({ ...current, paused: true, allowedTopics: [] }));
+      const sending = deferred();
+      let pendingWhileSending: SettingsChanges | undefined;
+      hosted.sendSettingsChanges.mockImplementationOnce(async () => {
+        pendingWhileSending = (await syncAccountsItem.getValue()).user_a!.unsent;
+        sending.resolve();
+        return new Promise<RemoteSettings>(() => {});
+      });
+      vi.resetModules();
+      const interrupted = await import("./sync");
+      void interrupted.syncSettings();
+      await sending.promise;
+      expect(pendingWhileSending?.paused).toEqual({ value: true, updatedAt: 100 });
+      expect(pendingWhileSending?.deletions).toEqual([{ collection: "allowedTopics", id: "t1", deletedAt: 100 }]);
+
+      vi.resetModules();
+      const restarted = await import("./sync");
+      vi.setSystemTime(300);
+      const retrying = deferred();
+      hosted.sendSettingsChanges.mockImplementationOnce(async () => {
+        retrying.resolve();
+        return remote({ ...defaultSettings(), paused: false });
+      });
+      restarted.startSettingsSync();
+      await retrying.promise;
+
+      const [retried] = hosted.sendSettingsChanges.mock.calls[2]!;
+      expect(retried.paused).toEqual({ value: true, updatedAt: 100 });
+      expect(retried.deletions).toEqual([{ collection: "allowedTopics", id: "t1", deletedAt: 100 }]);
+      await vi.waitFor(async () => expect((await syncAccountsItem.getValue()).user_a!.unsent).toBeUndefined());
+      expect((await readSettings()).paused).toBe(false);
     });
 
     it("stamps a change again once it was undone before the retry", async () => {
