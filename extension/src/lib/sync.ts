@@ -3,7 +3,7 @@ import { serialQueue } from "@content-clam/shared";
 import { hostedModeAvailable } from "./env";
 import { ensureAccount, fetchRemoteSettings, fromRemote, replaceRemoteSettings, sendSettingsChanges, sessionInfo, type RemoteSettings } from "./hosted";
 import { updateSettings } from "./settings";
-import { applyChanges, diffSettings, hasChanges } from "./settingsDiff";
+import { applyChanges, diffSettings, hasChanges, keepEarlierStamps } from "./settingsDiff";
 import { readSettings, syncAccountsItem, type SyncAccount } from "./storage";
 
 export const RETRY_ALARM = "settings-sync-retry";
@@ -64,19 +64,23 @@ export function syncSettings(): Promise<void> {
     const account = (await syncAccountsItem.getValue())[userId];
     if (!account) return;
     const sent = await readSettings();
-    const changes = diffSettings(account.baseline, sent, Date.now());
+    const changes = keepEarlierStamps(diffSettings(account.baseline, sent, Date.now()), account.unsent);
     if (!hasChanges(changes)) {
-      if (account.error) await saveAccount(userId, { baseline: account.baseline });
+      if (account.error || account.unsent) await saveAccount(userId, { baseline: account.baseline });
       return;
     }
     try {
-      const remote = await sendSettingsChanges(changes);
+      const remote = await sendSettingsChanges(changes, userId);
+      if ((await sessionInfo()).userId !== userId) {
+        await saveAccount(userId, { ...account, unsent: changes });
+        return;
+      }
       await updateSettings((current) => applyChanges(fromRemote(remote, current), diffSettings(sent, current, Date.now())));
       await saveAccount(userId, { baseline: fromRemote(remote, sent) });
       await chrome.alarms.clear(RETRY_ALARM);
     } catch (error) {
       const failures = (account.failures ?? 0) + 1;
-      await saveAccount(userId, { ...account, failures, error: error instanceof Error ? error.message : String(error) });
+      await saveAccount(userId, { ...account, unsent: changes, failures, error: error instanceof Error ? error.message : String(error) });
       await chrome.alarms.create(RETRY_ALARM, { delayInMinutes: Math.min(2 ** (failures - 1), MAX_RETRY_MINUTES) });
     }
   });

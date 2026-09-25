@@ -1,5 +1,6 @@
 import { storage } from "wxt/utils/storage";
 import { defaultSettings, sanitizeSettings, type HostedAnalyzeRequest, type Settings, type ClassificationResult } from "@content-clam/shared";
+import type { SettingsChanges } from "./settingsDiff";
 
 export type FundingMode = "none" | "personal-key" | "hosted";
 
@@ -20,6 +21,7 @@ export interface PendingOperation {
 
 export interface SyncAccount {
   baseline: Settings;
+  unsent?: SettingsChanges;
   error?: string;
   failures?: number;
 }

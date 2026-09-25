@@ -44,10 +44,11 @@ export async function sessionInfo(): Promise<SessionInfo> {
   }
 }
 
-async function convex(): Promise<ConvexHttpClient> {
+async function convex(expectedUserId?: string): Promise<ConvexHttpClient> {
   if (!env.convexUrl) throw new Error("Hosted mode is not configured in this build.");
   const token = await getToken();
   if (!token) throw new Error("Sign in to use credits.");
+  if (expectedUserId && tokenSubject(token) !== expectedUserId) throw new Error("The signed-in account changed. Try again.");
   const client = new ConvexHttpClient(env.convexUrl);
   client.setAuth(token);
   return client;
@@ -80,13 +81,23 @@ export async function replaceRemoteSettings(settings: Settings): Promise<RemoteS
   return client.mutation(api.settings.replaceAll, { paused: settings.paused, ...remoteItems(settings) });
 }
 
-export async function sendSettingsChanges(changes: SettingsChanges): Promise<RemoteSettings> {
-  const client = await convex();
+export async function sendSettingsChanges(changes: SettingsChanges, userId: string): Promise<RemoteSettings> {
+  const client = await convex(userId);
   return client.mutation(api.settings.applyChanges, {
     ...(changes.paused ? { paused: changes.paused } : {}),
     ...remoteItems(changes),
     deletions: changes.deletions.map(({ collection, id, deletedAt }) => ({ collection, itemId: id, deletedAt })),
   });
+}
+
+export function tokenSubject(token: string): string | undefined {
+  try {
+    const payload = token.split(".")[1]!.replace(/-/g, "+").replace(/_/g, "/");
+    const claims: unknown = JSON.parse(atob(payload));
+    return claims && typeof claims === "object" && "sub" in claims && typeof claims.sub === "string" ? claims.sub : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function remoteItems(settings: Pick<Settings, SyncedCollection>) {

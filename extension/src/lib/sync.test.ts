@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { defaultSettings, type Settings } from "@content-clam/shared";
 import { adoptRemoteSettings, RETRY_ALARM, syncSettings, syncStateFor, uploadLocalSettings } from "./sync";
@@ -12,7 +12,7 @@ const hosted = vi.hoisted(() => ({
   ensureAccount: vi.fn(async () => ({ balance: 0, trialGranted: true, created: false })),
   fetchRemoteSettings: vi.fn<() => Promise<RemoteSettings | null>>(),
   replaceRemoteSettings: vi.fn<(settings: Settings) => Promise<RemoteSettings>>(),
-  sendSettingsChanges: vi.fn<(changes: SettingsChanges) => Promise<RemoteSettings>>(),
+  sendSettingsChanges: vi.fn<(changes: SettingsChanges, userId: string) => Promise<RemoteSettings>>(),
 }));
 vi.mock("./hosted", async (importOriginal) => ({ ...(await importOriginal<typeof import("./hosted")>()), ...hosted }));
 vi.mock("./env", () => ({ env: {}, hostedModeAvailable: true }));
@@ -93,6 +93,41 @@ describe("account-scoped sync", () => {
     expect((await syncStateFor("user_b")).choice).toBe("unasked");
   });
 
+  it("uploads with the account the sync started for", async () => {
+    signedInAs("user_a");
+    await uploadLocalSettings();
+    await settingsItem.setValue(withTopic(defaultSettings(), "t1"));
+    await syncSettings();
+    expect(hosted.sendSettingsChanges).toHaveBeenCalledWith(expect.anything(), "user_a");
+  });
+
+  it("ignores an upload result that arrives after switching accounts", async () => {
+    const base = defaultSettings();
+    signedInAs("user_b");
+    await settingsItem.setValue(base);
+    await uploadLocalSettings();
+    signedInAs("user_a");
+    await uploadLocalSettings();
+
+    await settingsItem.setValue(withTopic(base, "t1"));
+    hosted.sendSettingsChanges.mockImplementationOnce(async () => {
+      signedInAs("user_b");
+      return remote(withTopic(withTopic(base, "t1"), "a_only"));
+    });
+    await syncSettings();
+    expect(topicIds(await readSettings())).toEqual(["t1"]);
+
+    await syncSettings();
+    const [forB, userB] = hosted.sendSettingsChanges.mock.calls[1]!;
+    expect(userB).toBe("user_b");
+    expect(forB.allowedTopics.map((t) => t.id)).toEqual(["t1"]);
+
+    signedInAs("user_a");
+    await syncSettings();
+    const [forA] = hosted.sendSettingsChanges.mock.calls[2]!;
+    expect(forA.allowedTopics.map((t) => t.id)).toEqual(["t1"]);
+  });
+
   it("refuses to sync without an identified account", async () => {
     hosted.sessionInfo.mockResolvedValue({ signedIn: true });
     await expect(uploadLocalSettings()).rejects.toThrow(/sign in/i);
@@ -141,5 +176,47 @@ describe("sync results", () => {
     expect(hosted.sendSettingsChanges.mock.calls[1]![0].allowedTopics.map((t) => t.id)).toEqual(["t1"]);
     expect(await syncStateFor("user_a")).toEqual({ choice: "asked" });
     expect(await chrome.alarms.get(RETRY_ALARM)).toBeUndefined();
+  });
+
+  describe("retries", () => {
+    beforeEach(() => vi.useFakeTimers({ toFake: ["Date"] }));
+    afterEach(() => vi.useRealTimers());
+
+    it("keeps the time a deletion or pause change was made", async () => {
+      await updateSettings((current) => withTopic(current, "t1"));
+      await syncSettings();
+
+      vi.setSystemTime(100);
+      await updateSettings((current) => ({ ...current, paused: true, allowedTopics: [] }));
+      hosted.sendSettingsChanges.mockRejectedValueOnce(new Error("offline"));
+      await syncSettings();
+
+      vi.setSystemTime(200);
+      hosted.sendSettingsChanges.mockRejectedValueOnce(new Error("offline"));
+      await syncSettings();
+
+      vi.setSystemTime(300);
+      await syncSettings();
+      const [retried] = hosted.sendSettingsChanges.mock.calls.at(-1)!;
+      expect(retried.paused).toEqual({ value: true, updatedAt: 100 });
+      expect(retried.deletions).toEqual([{ collection: "allowedTopics", id: "t1", deletedAt: 100 }]);
+    });
+
+    it("stamps a change again once it was undone before the retry", async () => {
+      vi.setSystemTime(100);
+      await updateSettings((current) => ({ ...current, paused: true }));
+      hosted.sendSettingsChanges.mockRejectedValueOnce(new Error("offline"));
+      await syncSettings();
+
+      vi.setSystemTime(200);
+      await updateSettings((current) => ({ ...current, paused: false }));
+      await syncSettings();
+
+      vi.setSystemTime(300);
+      await updateSettings((current) => ({ ...current, paused: true }));
+      await syncSettings();
+      const [latest] = hosted.sendSettingsChanges.mock.calls.at(-1)!;
+      expect(latest.paused).toEqual({ value: true, updatedAt: 300 });
+    });
   });
 });

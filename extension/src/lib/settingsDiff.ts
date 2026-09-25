@@ -38,6 +38,17 @@ export function applyChanges(base: Settings, changes: SettingsChanges): Settings
   };
 }
 
+export function keepEarlierStamps(changes: SettingsChanges, earlier: SettingsChanges | undefined): SettingsChanges {
+  if (!earlier) return changes;
+  const deletedAt = new Map(earlier.deletions.map((d) => [`${d.collection}:${d.id}`, d.deletedAt]));
+  const paused = changes.paused && earlier.paused?.value === changes.paused.value ? earlier.paused : changes.paused;
+  return {
+    ...changes,
+    ...(paused ? { paused } : {}),
+    deletions: changes.deletions.map((d) => ({ ...d, deletedAt: deletedAt.get(`${d.collection}:${d.id}`) ?? d.deletedAt })),
+  };
+}
+
 export function hasChanges(changes: SettingsChanges): boolean {
   return Boolean(changes.paused) || changes.deletions.length > 0 || COLLECTIONS.some((collection) => changes[collection].length > 0);
 }

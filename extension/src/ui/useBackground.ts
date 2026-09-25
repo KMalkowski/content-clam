@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Settings } from "@content-clam/shared";
 import { sendToBackground, type Status } from "../lib/messages";
 import type { SettingsChange } from "../lib/settings";
-import { settingsItem } from "../lib/storage";
+import { settingsItem, syncAccountsItem } from "../lib/storage";
 
 export type ChangeSettings = (change: SettingsChange) => Promise<boolean>;
 
@@ -43,6 +43,7 @@ export function useStatus() {
   }, []);
   useEffect(() => {
     void refresh();
+    return syncAccountsItem.watch(() => void refresh());
   }, [refresh]);
   return { status, refresh };
 }
