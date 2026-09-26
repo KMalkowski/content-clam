@@ -11,8 +11,8 @@ const SUGGESTIONS = [
   { name: "True crime", description: "True crime stories, case breakdowns and unsolved-mystery deep dives." },
   { name: "Unboxing", description: "Unboxing and first-impressions videos of new products." },
   { name: "Crypto", description: "Cryptocurrency news, coin picks and trading tips." },
-  { name: "Mukbang", description: "Videos of people eating large amounts of food on camera." },
-  { name: "Celebrity news", description: "Celebrity news, red carpet coverage and gossip about famous people." },
+  { name: "Mukbang", description: "Eating shows and large-meal challenge videos." },
+  { name: "Celebrity news", description: "Celebrity news, red-carpet coverage and entertainment gossip." },
 ];
 
 interface Removed {
@@ -32,8 +32,22 @@ export function Popup() {
 
   if (!settings) return <div className="cc-pop" />;
 
+  const editing = settings.categories.find((c) => c.id === editingId);
+  if (editing) {
+    return (
+      <CategoryEditor
+        key={editing.id}
+        category={editing}
+        categories={settings.categories}
+        count={counts?.byCategory[editing.id] ?? 0}
+        saveError={error}
+        change={change}
+        onClose={() => setEditingId(null)}
+      />
+    );
+  }
+
   const paused = settings.paused;
-  const editing = settings.categories.find((c) => c.id === editingId) ?? null;
   const remove = async (category: Category) => {
     const index = settings.categories.indexOf(category);
     if (await change({ type: "removeCategory", id: category.id })) setRemoved({ category, index });
@@ -42,19 +56,24 @@ export function Popup() {
     if (removed && (await change({ type: "restoreCategory", category: removed.category, index: removed.index }))) setRemoved(null);
   };
 
-  return (
-    <div className="cc-pop">
-      <div className="header">
-        <span className="title">
-          Content
-          <br />
-          Clam
-        </span>
-        <img src="/brand/content-clam-logo.png" alt="Content Clam" />
-      </div>
-      <div className="rule thick" />
-      <div className="rule double" />
+  const footer = removed ? (
+    <div role="status" className="undo">
+      <span>
+        Removed <span className="undo-name">{removed.category.name}</span>
+      </span>
+      <button type="button" className="action accent" onClick={undo}>
+        Undo
+      </button>
+    </div>
+  ) : (
+    <button type="button" className="settings-link" onClick={openOptions}>
+      <span>Open full settings</span>
+      <span className="arrow">→</span>
+    </button>
+  );
 
+  return (
+    <Frame footer={footer}>
       <div className="summary">
         <Summary status={status} counts={counts} onYouTube={onYouTube} />
       </div>
@@ -70,7 +89,12 @@ export function Popup() {
           on={settings.hideShorts}
           onToggle={(value) => change({ type: "setFlag", flag: "hideShorts", value })}
         />
-        <RuleRow name="Keep subscriptions" on={settings.keepSubscribed} onToggle={(value) => change({ type: "setFlag", flag: "keepSubscribed", value })} />
+        <RuleRow
+          name="Keep subscriptions"
+          info={<SubscriptionsTip />}
+          on={settings.keepSubscribed}
+          onToggle={(value) => change({ type: "setFlag", flag: "keepSubscribed", value })}
+        />
         <RuleRow
           name="Block categories"
           count={counts?.categoryVideos}
@@ -82,51 +106,38 @@ export function Popup() {
       <div className="rule soft section-rule" />
 
       <div className="section-head">
-        <span className="eyebrow">{editing ? "Blocked categories / Edit" : "Blocked categories"}</span>
-        {paused && !editing && <span className="paused">Paused</span>}
+        <span className="eyebrow">Blocked categories</span>
+        {paused && <span className="paused">Paused</span>}
       </div>
 
-      {editing ? (
-        <CategoryEditor
-          key={editing.id}
-          category={editing}
-          categories={settings.categories}
-          count={counts?.byCategory[editing.id] ?? 0}
-          saveError={error}
-          change={change}
-          onClose={() => setEditingId(null)}
-        />
-      ) : (
-        <>
-          <CategoryList
-            categories={settings.categories}
-            counts={counts?.byCategory ?? {}}
-            paused={paused}
-            onEdit={setEditingId}
-            onToggle={(c) => change({ type: "editCategory", id: c.id, patch: { enabled: !c.enabled } })}
-            onRemove={remove}
-          />
-          <AddCategory settings={settings} saveError={error} change={change} onAdded={setEditingId} />
-        </>
-      )}
+      <CategoryList
+        categories={settings.categories}
+        counts={counts?.byCategory ?? {}}
+        paused={paused}
+        onEdit={setEditingId}
+        onToggle={(c) => change({ type: "editCategory", id: c.id, patch: { enabled: !c.enabled } })}
+        onRemove={remove}
+      />
+      <AddCategory settings={settings} saveError={error} change={change} onAdded={setEditingId} />
+    </Frame>
+  );
+}
 
-      <div className="rule footer-rule" />
-      <div className="footer">
-        {removed ? (
-          <div role="status" className="undo">
-            <span>
-              Removed <span className="undo-name">{removed.category.name}</span>
-            </span>
-            <button type="button" className="action accent" onClick={undo}>
-              Undo
-            </button>
-          </div>
-        ) : (
-          <button type="button" className="settings-link" onClick={openOptions}>
-            <span>Open full settings</span>
-            <span className="arrow">→</span>
-          </button>
-        )}
+function Frame({ children, footer }: { children: ReactNode; footer: ReactNode }) {
+  return (
+    <div className="cc-pop">
+      <div className="body">
+        <div className="header">
+          <span className="title">Content Clam</span>
+          <img src="/brand/content-clam-logo.png" alt="Content Clam" />
+        </div>
+        <div className="rule thick" />
+        <div className="rule double" />
+        {children}
+      </div>
+      <div className="foot">
+        <div className="rule" />
+        <div className="footer">{footer}</div>
       </div>
     </div>
   );
@@ -134,7 +145,13 @@ export function Popup() {
 
 function Summary({ status, counts, onYouTube }: { status: Status | null; counts: HiddenCounts | null; onYouTube: boolean | null }) {
   const warning = fundingWarning(status);
-  if (warning) return <p className="note">{warning}</p>;
+  if (warning) {
+    return (
+      <p role="status" className="note">
+        {warning}
+      </p>
+    );
+  }
   if (onYouTube === false) return <p className="note">Open a YouTube tab to start filtering.</p>;
   if (!counts || onYouTube === null) return null;
   const total = counts.shorts + counts.categoryVideos;
@@ -168,17 +185,46 @@ function fundingWarning(status: Status | null): ReactNode {
   return <>Analyses are off. {link("Choose how to pay", openOptions)}</>;
 }
 
-function RuleRow({ name, count, on, onToggle }: { name: string; count?: number; on: boolean; onToggle: (on: boolean) => void }) {
+function RuleRow({ name, info, count, on, onToggle }: { name: string; info?: ReactNode; count?: number; on: boolean; onToggle: (on: boolean) => void }) {
   return (
     <div className="grid item">
       <div className="lead">
         <span className="name">{name}</span>
+        {info}
         <div className="dots" />
       </div>
       <span className="count">{count}</span>
       <Switch on={on} label={name} onToggle={onToggle} />
-      <span />
     </div>
+  );
+}
+
+function SubscriptionsTip() {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="tip-wrap">
+      <button
+        type="button"
+        className="info"
+        aria-label="About Keep subscriptions"
+        aria-describedby="cc-subs-tip"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setOpen(false);
+        }}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.5" />
+          <path d="M12 11v6" />
+          <circle cx="12" cy="7.6" r="0.6" fill="currentColor" />
+        </svg>
+      </button>
+      <span id="cc-subs-tip" role="tooltip" className={open ? "tip is-open" : "tip"}>
+        Videos from channels you’re subscribed to are never hidden by your blocked categories.
+      </span>
+    </span>
   );
 }
 
@@ -199,48 +245,46 @@ function CategoryList({
 }) {
   if (!categories.length) {
     return (
-      <div className="list empty">
+      <div className="empty">
         <span className="empty-title">Nothing blocked yet.</span>
         <span className="empty-hint">Add a topic like F1, or a kind of video like reaction content.</span>
       </div>
     );
   }
   return (
-    <div className={`list${paused ? " off" : ""}`}>
-      <div className="rows">
-        {categories.map((c) => (
-          <div key={c.id} className="grid item category">
-            <div className="lead">
-              <button type="button" className="category-name" aria-label={`Edit ${c.name}`} title={c.description} onClick={() => onEdit(c.id)}>
-                <span className="label">{c.name}</span>
-                <svg
-                  className="pen"
-                  width="11"
-                  height="11"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M4 20h4L19 9l-4-4L4 16z" />
-                  <path d="M13.5 6.5l4 4" />
-                </svg>
-              </button>
-              <div className="dots" />
-            </div>
-            <span className="count">{counts[c.id] ?? 0}</span>
-            <Switch on={c.enabled} label={c.name} disabled={paused} onToggle={() => onToggle(c)} />
-            <button type="button" className="remove" aria-label={`Remove ${c.name}`} onClick={() => onRemove(c)}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                <path d="M6 6l12 12M18 6L6 18" />
+    <div className={`rows list${paused ? " off" : ""}`}>
+      {categories.map((c) => (
+        <div key={c.id} className="category-grid item category">
+          <button type="button" className="remove" aria-label={`Remove ${c.name}`} onClick={() => onRemove(c)}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+          <div className="lead">
+            <button type="button" className="category-name" aria-label={`Edit ${c.name}`} onClick={() => onEdit(c.id)}>
+              <span className="label">{c.name}</span>
+              <svg
+                className="pen"
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M4 20h4L19 9l-4-4L4 16z" />
+                <path d="M13.5 6.5l4 4" />
               </svg>
             </button>
+            <div className="dots" />
           </div>
-        ))}
-      </div>
+          <span className="count">{counts[c.id] ?? 0}</span>
+          <Switch on={c.enabled} label={c.name} disabled={paused} onToggle={() => onToggle(c)} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -264,7 +308,6 @@ function AddCategory({
 
   const add = async (name: string, description: string, openEditor: boolean) => {
     if (taken.has(name.toLowerCase())) return setError(`${name} is already on your list.`);
-    if (full) return setError(`You can block up to ${MAX_CATEGORIES} categories.`);
     const next = await change({ type: "addCategory", name, description });
     if (!next) return;
     setDraft("");
@@ -274,9 +317,9 @@ function AddCategory({
   };
   const submit = () => {
     const name = draft.trim();
-    if (name) void add(name, name, true);
+    if (name && !full) void add(name, name, true);
   };
-  const message = error ?? (saveError && `Could not save: ${saveError}`);
+  const message = error ?? (saveError && `Could not save: ${saveError}`) ?? (full ? `You can block up to ${MAX_CATEGORIES} categories.` : null);
 
   return (
     <>
@@ -301,7 +344,7 @@ function AddCategory({
           placeholder="Add a topic or kind of video"
           autoComplete="off"
         />
-        <button type="button" className="action accent" disabled={!draft.trim()} onClick={submit}>
+        <button type="button" className="action accent" disabled={!draft.trim() || full} onClick={submit}>
           Add
         </button>
       </div>
@@ -311,7 +354,6 @@ function AddCategory({
             {message}
           </span>
         ) : (
-          !full &&
           suggestions.length > 0 && (
             <>
               <span className="try">Try</span>
@@ -354,8 +396,8 @@ function CategoryEditor({
     const patch = { name: trimmed, description: description.trim() || trimmed };
     if (await change({ type: "editCategory", id: category.id, patch })) onClose();
   };
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Enter") {
+  const onKeyDown = (saveKey: (e: KeyboardEvent) => boolean) => (e: KeyboardEvent) => {
+    if (e.key === "Enter" && saveKey(e)) {
       e.preventDefault();
       void save();
     } else if (e.key === "Escape") {
@@ -365,11 +407,22 @@ function CategoryEditor({
   };
   const problem = error ?? (saveError && `Could not save: ${saveError}`);
 
+  const footer = (
+    <div className="editor-actions">
+      <button type="button" className="action" onClick={onClose}>
+        Cancel
+      </button>
+      <button type="button" className="action accent" onClick={() => void save()}>
+        Save
+      </button>
+    </div>
+  );
+
   return (
-    <div className="editor">
-      <div className="editor-head">
-        <label htmlFor="cc-title" className="sr-only">
-          Category name
+    <Frame footer={footer}>
+      <div className="editor">
+        <label htmlFor="cc-title" className="eyebrow">
+          Category
         </label>
         <input
           id="cc-title"
@@ -381,39 +434,34 @@ function CategoryEditor({
             setName(e.target.value);
             setError(null);
           }}
-          onKeyDown={onKeyDown}
+          onKeyDown={onKeyDown(() => true)}
           placeholder="Category name"
           autoComplete="off"
         />
         <span className="editor-count">
           <span className="number">{count}</span> hidden this week
         </span>
-      </div>
-      <label htmlFor="cc-desc" className="eyebrow editor-label">
-        What should Clam hide?
-      </label>
-      <textarea
-        id="cc-desc"
-        value={description}
-        maxLength={MAX_DESCRIPTION_CHARS}
-        onChange={(e) => setDescription(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder={`Describe ${name.trim() || "this category"} in a sentence, so Clam knows what to catch.`}
-      />
-      <div className="editor-foot">
-        <span role="status" className={problem ? "helper error" : "helper"}>
-          {problem ?? `Used to match videos · ${description.length}/${MAX_DESCRIPTION_CHARS}`}
-        </span>
-        <div className="editor-actions">
-          <button type="button" className="action" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="button" className="action accent" onClick={() => void save()}>
-            Save
-          </button>
+        <label htmlFor="cc-desc" className="eyebrow editor-label">
+          What should Clam hide?
+        </label>
+        <textarea
+          id="cc-desc"
+          value={description}
+          maxLength={MAX_DESCRIPTION_CHARS}
+          onChange={(e) => setDescription(e.target.value)}
+          onKeyDown={onKeyDown((e) => e.metaKey || e.ctrlKey)}
+          placeholder={`Describe ${name.trim() || "this category"} in a sentence, so Clam knows what to catch.`}
+        />
+        <div className="editor-foot">
+          <span role="status" className={problem ? "helper error" : "helper"}>
+            {problem ?? "Clam reads this to decide which videos belong here."}
+          </span>
+          <span className="char-count">
+            {description.length.toLocaleString("en-US")} / {MAX_DESCRIPTION_CHARS.toLocaleString("en-US")}
+          </span>
         </div>
       </div>
-    </div>
+    </Frame>
   );
 }
 
